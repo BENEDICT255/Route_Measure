@@ -35,7 +35,7 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
       route.endPoint.latitude,
       route.endPoint.longitude
     );
-    const bearing = (inv.azi1 + 360) % 360;
+    const bearing = inv.azi1 !== undefined ? (inv.azi1 + 360) % 360 : 0;
 
     const segDists = route.segments.map((s) => s.distanceMetres);
     const minSeg = Math.min(...segDists);

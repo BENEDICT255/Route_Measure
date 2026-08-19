@@ -40,7 +40,7 @@ export function inverseGeodesic(
   lon2: number
 ): number {
   const result = geod.Inverse(lat1, lon1, lat2, lon2);
-  return result.s12;
+  return result.s12 ?? 0;
 }
 
 /**
