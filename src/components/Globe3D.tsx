@@ -1,104 +1,38 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 /* ═══════════════════════════════════════════════════════════════════
    Globe3D — Photorealistic Interactive Earth
    ═══════════════════════════════════════════════════════════════════
-   • Realistic Earth textures (earthmap, earthbump, earthCloud)
+   • Realistic Earth textures (day, night city lights, bump, clouds)
    • Thin natural atmospheric Fresnel rim (NOT a blue circle)
    • Directional sunlight with warm upper-right highlight
+   • Stars as independent Points geometry (does NOT rotate with Earth)
+   • Day/night shader blending city lights on dark hemisphere
    • Proper state-machine rotation: idle → drag → inertia → rest → idle
    • Frame-rate independent motion (delta-time based)
-   • Subtle grounding glow beneath Earth
-   • No galaxy starbox — transparent canvas blends with CSS background
+   • Responsive globe sizing based on min(vw, vh)
+   • Respects prefers-reduced-motion
    ═══════════════════════════════════════════════════════════════════ */
-
-// ─── ROUTE DATA ────────────────────────────────────────────────────
-interface RouteData {
-  id: string;
-  distanceLabel: string;
-  color: string;
-  points: [number, number][];
-}
-
-const DEMO_ROUTES: RouteData[] = [
-  {
-    id: 'route-europe',
-    distanceLabel: '2.85 km',
-    color: '#60a5fa',
-    points: [
-      [52.52, 13.405],   // Berlin
-      [50.075, 14.437],  // Prague
-      [48.137, 11.576],  // Munich
-    ],
-  },
-  {
-    id: 'route-africa',
-    distanceLabel: '5.12 km',
-    color: '#34d399',
-    points: [
-      [1.292, 36.821],   // Nairobi
-      [-1.286, 36.817],
-      [-4.043, 39.668],  // Mombasa
-    ],
-  },
-  {
-    id: 'route-asia',
-    distanceLabel: '1.73 km',
-    color: '#c084fc',
-    points: [
-      [6.927, 79.861],   // Colombo
-      [3.139, 101.686],  // KL
-      [1.352, 103.819],  // Singapore
-    ],
-  },
-];
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────
 const EARTH_RADIUS = 0.6;
 const SPHERE_SEGMENTS = 64;
 
 // Rotation physics
-const IDLE_SPEED_DEG_PER_SEC = 0.35;         // ~0.35°/s eastward
+const IDLE_SPEED_DEG_PER_SEC = 0.35;
 const IDLE_SPEED = (IDLE_SPEED_DEG_PER_SEC * Math.PI) / 180;
-const DRAG_SENSITIVITY = 0.005;              // rad per pixel
-const PITCH_CLAMP = (60 * Math.PI) / 180;    // ±60° vertical limit
-const DAMPING = 0.92;                        // per-frame at 60fps baseline
-const VELOCITY_THRESHOLD = 0.00003;          // stop threshold
-const IDLE_RESUME_DELAY = 4000;              // ms before idle resumes
-const IDLE_EASE_DURATION = 1500;             // ms to ease into idle
-
-// ─── HELPERS ───────────────────────────────────────────────────────
-function latLonToVec3(lat: number, lon: number, r: number): THREE.Vector3 {
-  const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (lon + 180) * (Math.PI / 180);
-  return new THREE.Vector3(
-    -(r * Math.sin(phi) * Math.cos(theta)),
-    r * Math.cos(phi),
-    r * Math.sin(phi) * Math.sin(theta),
-  );
-}
-
-// ─── BADGE STATE ───────────────────────────────────────────────────
-interface BadgeState {
-  id: string;
-  label: string;
-  color: string;
-  x: number;
-  y: number;
-  visible: boolean;
-}
+const DRAG_SENSITIVITY = 0.005;
+const PITCH_CLAMP = (60 * Math.PI) / 180;
+const DAMPING = 0.92;
+const VELOCITY_THRESHOLD = 0.00003;
+const IDLE_RESUME_DELAY = 4000;
+const IDLE_EASE_DURATION = 1500;
 
 // ─── COMPONENT ─────────────────────────────────────────────────────
 export function Globe3D() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [badges, setBadges] = useState<BadgeState[]>([]);
   const [isInteracting, setIsInteracting] = useState(false);
-  const badgesRef = useRef<BadgeState[]>([]);
-
-  const flushBadges = useCallback(() => {
-    setBadges([...badgesRef.current]);
-  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -106,22 +40,24 @@ export function Globe3D() {
 
     let disposed = false;
 
+    // Check reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     // ─── RENDERER (transparent background!) ──────────────────────
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
       powerPreference: 'high-performance',
     });
-    renderer.setClearColor(0x000000, 0);        // fully transparent
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.15;
     container.appendChild(renderer.domElement);
 
     // ─── SCENE & CAMERA ──────────────────────────────────────────
     const scene = new THREE.Scene();
-    // No scene background — transparent canvas matches CSS gradient
 
     const camera = new THREE.PerspectiveCamera(
       38,
@@ -129,36 +65,126 @@ export function Globe3D() {
       0.1,
       100,
     );
-    camera.position.set(0, 0, 1.76);
+
+    // Dynamic camera distance for responsive globe sizing
+    const computeCameraZ = () => {
+      const vw = container.clientWidth;
+      const vh = container.clientHeight;
+      const minDim = Math.min(vw, vh);
+      // Globe should fill ~65-80% of the smaller viewport dimension
+      // Closer camera = larger globe. Clamp between 1.4 and 2.2
+      const z = THREE.MathUtils.clamp(2.6 - (minDim / 900), 1.4, 2.2);
+      return z;
+    };
+
+    camera.position.set(0, 0, computeCameraZ());
 
     // ─── GLOBE GROUP ─────────────────────────────────────────────
     const globeGroup = new THREE.Group();
     scene.add(globeGroup);
 
-    // Initial rotation — Europe/Africa/Middle East facing camera
-    // Y rotation controls longitude, X controls tilt
-    let globeYaw = -2.3;     // initial longitude rotation (show Africa/Europe)
-    let globePitch = 0.18;   // slight axial tilt
+    // Initial rotation — show Americas (matching reference image)
+    let globeYaw = 1.2;
+    let globePitch = 0.15;
     globeGroup.rotation.order = 'YXZ';
     globeGroup.rotation.y = globeYaw;
     globeGroup.rotation.x = globePitch;
 
     // ─── TEXTURES ────────────────────────────────────────────────
     const loader = new THREE.TextureLoader();
+
+    // Check if on mobile for lower-res textures
+    const isMobile = window.innerWidth < 768;
+
     const earthMapTex = loader.load('/texture/earthmap.jpeg');
     earthMapTex.colorSpace = THREE.SRGBColorSpace;
+    if (isMobile) {
+      earthMapTex.minFilter = THREE.LinearFilter;
+    }
+
     const earthBumpTex = loader.load('/texture/earthbump.jpeg');
     const earthCloudTex = loader.load('/texture/earthCloud.png');
     earthCloudTex.colorSpace = THREE.SRGBColorSpace;
 
-    // ─── 1. EARTH SPHERE ─────────────────────────────────────────
+    const earthNightTex = loader.load('/texture/earthmap_night.jpeg');
+    earthNightTex.colorSpace = THREE.SRGBColorSpace;
+
+    // ─── SUN DIRECTION ───────────────────────────────────────────
+    const sunDir = new THREE.Vector3(4, 3, 5).normalize();
+
+    // ─── 1. EARTH SPHERE (Day/Night Shader) ──────────────────────
     const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
-    const earthMat = new THREE.MeshPhongMaterial({
-      map: earthMapTex,
-      bumpMap: earthBumpTex,
-      bumpScale: 0.012,
-      specular: new THREE.Color(0x111822),
-      shininess: 18,
+
+    const earthDayNightVert = `
+      varying vec2 vUv;
+      varying vec3 vWorldNormal;
+      varying vec3 vWorldPosition;
+      void main() {
+        vUv = uv;
+        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPos.xyz;
+        vWorldNormal = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `;
+
+    const earthDayNightFrag = `
+      uniform sampler2D dayMap;
+      uniform sampler2D nightMap;
+      uniform sampler2D bumpMap;
+      uniform vec3 sunDirection;
+      uniform vec3 ambientColor;
+      uniform float ambientIntensity;
+      varying vec2 vUv;
+      varying vec3 vWorldNormal;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 normal = normalize(vWorldNormal);
+        vec3 lightDir = normalize(sunDirection);
+
+        // Lambertian diffuse
+        float NdotL = dot(normal, lightDir);
+
+        // Smooth transition zone across terminator
+        float dayFactor = smoothstep(-0.15, 0.25, NdotL);
+
+        // Sample textures
+        vec4 dayColor = texture2D(dayMap, vUv);
+        vec4 nightColor = texture2D(nightMap, vUv);
+
+        // Day lighting: ambient + diffuse
+        float diffuse = max(0.0, NdotL);
+        vec3 litDay = dayColor.rgb * (ambientColor * ambientIntensity + vec3(1.0, 0.98, 0.92) * diffuse * 1.8);
+
+        // Night: city lights with subtle blue ambient
+        vec3 litNight = nightColor.rgb * 1.4 + dayColor.rgb * 0.03;
+
+        // Blend
+        vec3 finalColor = mix(litNight, litDay, dayFactor);
+
+        // Specular highlight for oceans (darker areas in day texture)
+        vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+        vec3 halfDir = normalize(lightDir + viewDir);
+        float spec = pow(max(0.0, dot(normal, halfDir)), 40.0);
+        float specMask = 1.0 - clamp(length(dayColor.rgb) * 1.2, 0.0, 1.0);
+        finalColor += vec3(0.15, 0.18, 0.22) * spec * specMask * dayFactor;
+
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+
+    const earthMat = new THREE.ShaderMaterial({
+      uniforms: {
+        dayMap: { value: earthMapTex },
+        nightMap: { value: earthNightTex },
+        bumpMap: { value: earthBumpTex },
+        sunDirection: { value: sunDir },
+        ambientColor: { value: new THREE.Color(0.12, 0.14, 0.2) },
+        ambientIntensity: { value: 1.0 },
+      },
+      vertexShader: earthDayNightVert,
+      fragmentShader: earthDayNightFrag,
     });
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
     globeGroup.add(earthMesh);
@@ -168,13 +194,13 @@ export function Globe3D() {
     const cloudMat = new THREE.MeshPhongMaterial({
       map: earthCloudTex,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.28,
       depthWrite: false,
     });
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     globeGroup.add(cloudMesh);
 
-    // ─── 3. THIN NATURAL ATMOSPHERE (Fresnel rim — NOT a ring) ───
+    // ─── 3. THIN NATURAL ATMOSPHERE (Fresnel rim) ────────────────
     const atmosVert = `
       varying vec3 vWorldNormal;
       varying vec3 vWorldPosition;
@@ -193,23 +219,23 @@ export function Globe3D() {
         vec3 viewDir = normalize(cameraPosition - vWorldPosition);
         float rim = 1.0 - max(0.0, dot(viewDir, vWorldNormal));
 
-        // Very thin — pow 5.0 makes it only visible near silhouette
-        float intensity = pow(rim, 5.0) * 1.2;
+        // Very thin — pow 6.0 makes it only visible near silhouette
+        float intensity = pow(rim, 6.0) * 1.0;
 
-        // Stronger on sun-facing side, very faint on dark side
+        // Angle-dependent: stronger on sun-facing side, very faint on dark side
         float sunFacing = max(0.0, dot(vWorldNormal, sunDirection));
-        intensity *= (0.15 + 1.8 * sunFacing);
+        intensity *= (0.1 + 1.6 * sunFacing);
 
-        // Natural blue/cyan atmospheric color
-        vec3 color = mix(vec3(0.2, 0.4, 0.8), vec3(0.5, 0.75, 1.0), sunFacing);
+        // Restrained deep atmospheric blue palette
+        vec3 deepBlue = vec3(0.16, 0.41, 0.72);   // #2868B7
+        vec3 limbBlue = vec3(0.29, 0.62, 1.0);     // #4A9EFF
+        vec3 color = mix(deepBlue, limbBlue, sunFacing * 0.7);
 
-        gl_FragColor = vec4(color, intensity * 0.55);
+        gl_FragColor = vec4(color, intensity * 0.45);
       }
     `;
 
-    const sunDir = new THREE.Vector3(4, 3, 5).normalize();
-
-    const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.025, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
+    const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.022, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
     const atmosMat = new THREE.ShaderMaterial({
       uniforms: { sunDirection: { value: sunDir } },
       vertexShader: atmosVert,
@@ -221,109 +247,62 @@ export function Globe3D() {
     });
     scene.add(new THREE.Mesh(atmosGeo, atmosMat));
 
-    // ─── 4. SUBTLE GROUNDING GLOW ────────────────────────────────
-    const glowCanvas = document.createElement('canvas');
-    glowCanvas.width = 256;
-    glowCanvas.height = 256;
-    const gctx = glowCanvas.getContext('2d');
-    if (gctx) {
-      const grad = gctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-      grad.addColorStop(0, 'rgba(25, 60, 130, 0.22)');
-      grad.addColorStop(0.4, 'rgba(15, 35, 80, 0.10)');
-      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      gctx.fillStyle = grad;
-      gctx.fillRect(0, 0, 256, 256);
+    // ─── 4. STAR FIELD (independent of globe rotation) ───────────
+    const starCount = isMobile ? 500 : 800;
+    const starPositions = new Float32Array(starCount * 3);
+    const starSizes = new Float32Array(starCount);
+
+    for (let i = 0; i < starCount; i++) {
+      // Random position on a distant sphere
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 25 + Math.random() * 25;
+
+      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      starPositions[i * 3 + 2] = r * Math.cos(phi);
+
+      // Varied brightness via size
+      starSizes[i] = 0.5 + Math.random() * 1.5;
     }
-    const glowTex = new THREE.CanvasTexture(glowCanvas);
-    const glowGeo = new THREE.PlaneGeometry(2.2, 0.8);
-    const glowMat = new THREE.MeshBasicMaterial({
-      map: glowTex,
+
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+
+    const starMat = new THREE.PointsMaterial({
+      color: 0xdde4f0,
+      size: 0.08,
+      sizeAttenuation: true,
       transparent: true,
+      opacity: 0.7,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
     });
-    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-    glowMesh.rotation.x = -Math.PI / 2;
-    glowMesh.position.set(0, -EARTH_RADIUS - 0.08, 0);
-    scene.add(glowMesh);
 
-    // ─── 5. LIGHTING ─────────────────────────────────────────────
-    // Ambient — fills dark side subtly
-    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    const starField = new THREE.Points(starGeo, starMat);
+    // Stars are added directly to scene, NOT to globeGroup
+    scene.add(starField);
 
-    // Main sun — warm white from upper-right
-    const sun = new THREE.DirectionalLight(0xfff8ee, 2.6);
+    // ─── 5. LIGHTING (for cloud layer only — Earth uses custom shader) ──
+    scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+    const sun = new THREE.DirectionalLight(0xfff8ee, 2.2);
     sun.position.copy(sunDir.clone().multiplyScalar(10));
     scene.add(sun);
 
-    // Warm rim light — subtle golden highlight on upper-right edge
-    const warmRim = new THREE.DirectionalLight(0xffcc88, 0.4);
+    // Warm rim light for the illuminated edge
+    const warmRim = new THREE.DirectionalLight(0xffcc88, 0.3);
     warmRim.position.set(3, 4, 2);
     scene.add(warmRim);
 
-    // Cool fill — very subtle blue from the opposite side
-    const coolFill = new THREE.DirectionalLight(0x3366aa, 0.15);
+    // Cool fill from dark side
+    const coolFill = new THREE.DirectionalLight(0x3366aa, 0.08);
     coolFill.position.set(-4, -1, -3);
     scene.add(coolFill);
 
-    // ─── 6. ROUTE OVERLAYS ───────────────────────────────────────
-    const routeMidpoints: { id: string; label: string; color: string; vec: THREE.Vector3 }[] = [];
-
-    DEMO_ROUTES.forEach((route) => {
-      const pts = route.points.map(([lat, lon]) =>
-        latLonToVec3(lat, lon, EARTH_RADIUS * 1.006),
-      );
-
-      // Thin route line
-      const curve = new THREE.CatmullRomCurve3(pts);
-      const curvePoints = curve.getPoints(48);
-      const lineGeo = new THREE.BufferGeometry().setFromPoints(curvePoints);
-      const lineMat = new THREE.LineBasicMaterial({
-        color: new THREE.Color(route.color),
-        transparent: true,
-        opacity: 0.9,
-      });
-      globeGroup.add(new THREE.Line(lineGeo, lineMat));
-
-      // Tiny coordinate ring markers
-      pts.forEach((vec) => {
-        // Outer ring
-        const ringGeo = new THREE.RingGeometry(0.006, 0.009, 16);
-        const ringMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(route.color),
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.9,
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.position.copy(vec);
-        ring.lookAt(new THREE.Vector3(0, 0, 0));
-        globeGroup.add(ring);
-
-        // Center dot
-        const dotGeo = new THREE.SphereGeometry(0.004, 8, 8);
-        const dotMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(route.color),
-        });
-        const dot = new THREE.Mesh(dotGeo, dotMat);
-        dot.position.copy(vec);
-        globeGroup.add(dot);
-      });
-
-      // Badge midpoint
-      const midVec = pts[Math.floor(pts.length / 2)].clone().multiplyScalar(1.06);
-      routeMidpoints.push({
-        id: route.id,
-        label: route.distanceLabel,
-        color: route.color,
-        vec: midVec,
-      });
-    });
-
-    // ─── 7. ROTATION STATE MACHINE ───────────────────────────────
-    // States: IDLE | DRAGGING | INERTIA | REST | RETURNING_TO_IDLE
+    // ─── 6. ROTATION STATE MACHINE ───────────────────────────────
     type GlobeState = 'IDLE' | 'DRAGGING' | 'INERTIA' | 'REST' | 'RETURNING_TO_IDLE';
-    let state: GlobeState = 'IDLE';
+    let state: GlobeState = prefersReducedMotion ? 'REST' : 'IDLE';
 
     let velocityYaw = 0;
     let velocityPitch = 0;
@@ -342,7 +321,6 @@ export function Globe3D() {
       state = 'DRAGGING';
       setIsInteracting(true);
 
-      // Kill any previous velocity
       velocityYaw = 0;
       velocityPitch = 0;
 
@@ -360,12 +338,10 @@ export function Globe3D() {
       const dx = e.clientX - prevPointerX;
       const dy = e.clientY - prevPointerY;
 
-      // Immediate rotation
       globeYaw += dx * DRAG_SENSITIVITY;
       globePitch += dy * DRAG_SENSITIVITY;
       globePitch = Math.max(-PITCH_CLAMP, Math.min(PITCH_CLAMP, globePitch));
 
-      // Track velocity (pixels/ms → rad/frame equivalent)
       velocityYaw = (dx * DRAG_SENSITIVITY) / (dt / 16.67);
       velocityPitch = (dy * DRAG_SENSITIVITY) / (dt / 16.67);
 
@@ -377,8 +353,7 @@ export function Globe3D() {
     const onPointerUp = () => {
       if (state !== 'DRAGGING') return;
 
-      // Clamp release velocity to prevent crazy spin
-      const maxVel = 0.04;
+      const maxVel = prefersReducedMotion ? 0.01 : 0.04;
       velocityYaw = Math.max(-maxVel, Math.min(maxVel, velocityYaw));
       velocityPitch = Math.max(-maxVel, Math.min(maxVel, velocityPitch));
 
@@ -392,9 +367,8 @@ export function Globe3D() {
     el.addEventListener('pointerup', onPointerUp);
     el.addEventListener('pointercancel', onPointerUp);
 
-    // ─── 8. ANIMATION LOOP (delta-time based) ────────────────────
+    // ─── 7. ANIMATION LOOP (delta-time based) ────────────────────
     let frameId: number;
-    let frameCount = 0;
 
     const animate = () => {
       frameId = requestAnimationFrame(animate);
@@ -404,28 +378,21 @@ export function Globe3D() {
       const rawDt = now - prevFrameTime;
       prevFrameTime = now;
 
-      // Clamp delta to avoid huge jumps (tab switch, etc.)
       const dt = Math.min(rawDt, 100);
-      // Normalized frame factor (1.0 at 60fps)
       const frameFactor = dt / 16.667;
-
-      frameCount++;
 
       // ── STATE MACHINE ────────────────────────────────────────
       switch (state) {
         case 'IDLE': {
-          // Slow consistent eastward rotation
           globeYaw += IDLE_SPEED * frameFactor;
           break;
         }
 
         case 'DRAGGING': {
-          // Rotation applied directly in pointer handler
           break;
         }
 
         case 'INERTIA': {
-          // Apply frame-rate-independent damping
           const dampPower = Math.pow(DAMPING, frameFactor);
           velocityYaw *= dampPower;
           velocityPitch *= dampPower;
@@ -434,7 +401,6 @@ export function Globe3D() {
           globePitch += velocityPitch * frameFactor;
           globePitch = Math.max(-PITCH_CLAMP, Math.min(PITCH_CLAMP, globePitch));
 
-          // Check if effectively stopped
           if (Math.abs(velocityYaw) < VELOCITY_THRESHOLD && Math.abs(velocityPitch) < VELOCITY_THRESHOLD) {
             velocityYaw = 0;
             velocityPitch = 0;
@@ -445,8 +411,7 @@ export function Globe3D() {
         }
 
         case 'REST': {
-          // Wait for idle resume delay
-          if (now - restStartTime > IDLE_RESUME_DELAY) {
+          if (!prefersReducedMotion && now - restStartTime > IDLE_RESUME_DELAY) {
             state = 'RETURNING_TO_IDLE';
             idleEaseStart = now;
           }
@@ -454,10 +419,8 @@ export function Globe3D() {
         }
 
         case 'RETURNING_TO_IDLE': {
-          // Ease into idle rotation over IDLE_EASE_DURATION ms
           const elapsed = now - idleEaseStart;
           const t = Math.min(elapsed / IDLE_EASE_DURATION, 1);
-          // Smooth ease-in-out
           const eased = t * t * (3 - 2 * t);
           globeYaw += IDLE_SPEED * eased * frameFactor;
 
@@ -473,41 +436,12 @@ export function Globe3D() {
       globeGroup.rotation.x = globePitch;
 
       // Very slow independent cloud drift
-      cloudMesh.rotation.y += 0.00008 * frameFactor;
+      if (!prefersReducedMotion) {
+        cloudMesh.rotation.y += 0.00008 * frameFactor;
+      }
 
       // Render
       renderer.render(scene, camera);
-
-      // ── PROJECT BADGES (every 2nd frame) ─────────────────────
-      if (frameCount % 2 === 0 && routeMidpoints.length > 0) {
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        const newBadges: BadgeState[] = [];
-
-        routeMidpoints.forEach((rm) => {
-          const worldPos = rm.vec.clone().applyMatrix4(globeGroup.matrixWorld);
-          const camDir = camera.position.clone().sub(worldPos).normalize();
-          const normal = worldPos.clone().normalize();
-          const dot = normal.dot(camDir);
-
-          if (dot > 0.18) {
-            const projected = worldPos.clone().project(camera);
-            newBadges.push({
-              id: rm.id,
-              label: rm.label,
-              color: rm.color,
-              x: ((projected.x + 1) * w) / 2,
-              y: ((-projected.y + 1) * h) / 2,
-              visible: true,
-            });
-          } else {
-            newBadges.push({ id: rm.id, label: rm.label, color: rm.color, x: 0, y: 0, visible: false });
-          }
-        });
-
-        badgesRef.current = newBadges;
-        flushBadges();
-      }
     };
 
     animate();
@@ -516,6 +450,7 @@ export function Globe3D() {
     const onResize = () => {
       if (!container) return;
       camera.aspect = container.clientWidth / container.clientHeight;
+      camera.position.z = computeCameraZ();
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
     };
@@ -547,7 +482,7 @@ export function Globe3D() {
       }
       renderer.dispose();
     };
-  }, [flushBadges]);
+  }, []);
 
   return (
     <div
@@ -559,53 +494,6 @@ export function Globe3D() {
         cursor: isInteracting ? 'grabbing' : 'grab',
         touchAction: 'none',
       }}
-    >
-      {/* Floating distance badges */}
-      {badges.map((b) =>
-        b.visible ? (
-          <div
-            key={b.id}
-            style={{
-              position: 'absolute',
-              left: b.x,
-              top: b.y,
-              transform: 'translate(-50%, -100%) translateY(-10px)',
-              pointerEvents: 'none',
-              zIndex: 10,
-            }}
-          >
-            <div
-              style={{
-                background: 'rgba(8, 15, 30, 0.82)',
-                backdropFilter: 'blur(6px)',
-                color: '#e2e8f0',
-                fontSize: '10px',
-                fontWeight: 600,
-                letterSpacing: '0.02em',
-                padding: '3px 8px',
-                borderRadius: '12px',
-                border: `1px solid ${b.color}44`,
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <span
-                style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '50%',
-                  background: b.color,
-                  display: 'inline-block',
-                  boxShadow: `0 0 4px ${b.color}`,
-                }}
-              />
-              {b.label}
-            </div>
-          </div>
-        ) : null,
-      )}
-    </div>
+    />
   );
 }

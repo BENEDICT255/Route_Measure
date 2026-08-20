@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import type { MeasuredRoute, RoutePoint } from '../types/coordinates';
-import { GoogleMapsAdapter } from '../mapping/GoogleMapsAdapter';
+import { GoogleMapsAdapter, classifyRoute, ROUTE_COLORS } from '../mapping/GoogleMapsAdapter';
+import type { RouteClassification, RouteRenderOptions } from '../mapping/GoogleMapsAdapter';
 import type { MapType } from '../types/map';
 import { Geodesic } from 'geographiclib-geodesic';
 import { formatDistanceMetres, formatDistanceKilometres } from '../utils/formatters';
 
+type RouteFilter = 'all' | 'mv' | 'lv';
+
 interface RouteMapProps {
   route: MeasuredRoute | null;
+  allRoutes?: MeasuredRoute[];
   onPointSelect?: (point: RoutePoint) => void;
   apiKey?: string;
   onApiKeyChange?: (key: string) => void;
 }
 
-export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: RouteMapProps) {
+export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChange }: RouteMapProps) {
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<GoogleMapsAdapter | null>(null);
@@ -23,6 +27,20 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showKeyInput, setShowKeyInput] = useState<boolean>(false);
   const [inputKeyVal, setInputKeyVal] = useState<string>(apiKey || '');
+  const [routeFilter, setRouteFilter] = useState<RouteFilter>('all');
+
+  // Classify routes
+  const routeClassifications = useMemo(() => {
+    const routes = allRoutes || (route ? [route] : []);
+    return routes.map(r => ({
+      route: r,
+      classification: classifyRoute(r.name),
+    }));
+  }, [allRoutes, route]);
+
+  const hasMV = routeClassifications.some(r => r.classification === 'mv');
+  const hasLV = routeClassifications.some(r => r.classification === 'lv');
+  const hasBothTypes = hasMV && hasLV;
 
   // Dynamic Route Overview statistics
   const routeStats = useMemo(() => {
@@ -70,9 +88,6 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
         if (onPointSelect) {
           adapter.onPointClick(onPointSelect);
         }
-        if (route) {
-          adapter.renderRoute(route);
-        }
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -89,24 +104,63 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
     };
   }, [apiKey]);
 
-  // Re-render route when route changes
+  // Re-render routes when route/filter changes
   useEffect(() => {
-    if (adapterRef.current?.isLoaded() && route) {
-      adapterRef.current.renderRoute(route);
+    if (!adapterRef.current?.isLoaded()) return;
+
+    const routes = allRoutes || (route ? [route] : []);
+    if (routes.length === 0) return;
+
+    if (hasBothTypes && routes.length > 1) {
+      // Multi-route mode with MV/LV classification
+      const renderData = routes.map(r => {
+        const cls = classifyRoute(r.name);
+        const isActive = routeFilter === 'all' || routeFilter === cls;
+        return {
+          route: r,
+          options: {
+            strokeColor: ROUTE_COLORS[cls],
+            haloColor: '#FFFFFF',
+            opacity: isActive ? 0.9 : 0.18,
+          } as RouteRenderOptions,
+        };
+      });
+
+      adapterRef.current.renderMultipleRoutes(renderData, true);
+    } else if (route) {
+      // Single route mode
+      const cls = classifyRoute(route.name);
+      adapterRef.current.renderRoute(route, {
+        strokeColor: ROUTE_COLORS[cls],
+        haloColor: '#FFFFFF',
+        opacity: 0.9,
+      });
     }
-  }, [route]);
+  }, [route, allRoutes, routeFilter, hasBothTypes]);
 
   // Listen to Fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFull = !!document.fullscreenElement;
       setIsFullscreen(isFull);
+      // Trigger map resize after fullscreen transition
+      setTimeout(() => adapterRef.current?.triggerResize(), 200);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
+  }, []);
+
+  // Trigger resize on container size changes (orientation, layout reflow)
+  useEffect(() => {
+    if (!mapWrapperRef.current) return;
+    const resizeObserver = new ResizeObserver(() => {
+      adapterRef.current?.triggerResize();
+    });
+    resizeObserver.observe(mapWrapperRef.current);
+    return () => resizeObserver.disconnect();
   }, []);
 
   const toggleMapType = (type: MapType) => {
@@ -141,15 +195,29 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
     setShowKeyInput(false);
   };
 
+  // Segmented filter button style
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    background: active ? '#2563eb' : 'transparent',
+    color: 'white',
+    border: 'none',
+    padding: '4px 10px',
+    borderRadius: 5,
+    fontSize: 11,
+    fontWeight: active ? 700 : 500,
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    minWidth: 36,
+  });
+
   return (
     <div
       ref={mapWrapperRef}
-      className="map-container"
+      className="map-container rm-map-container"
       style={{
         position: 'relative',
         width: '100%',
         height: isFullscreen ? '100vh' : '100%',
-        minHeight: isFullscreen ? '100vh' : '560px',
+        minHeight: isFullscreen ? '100vh' : '400px',
         borderRadius: isFullscreen ? '0px' : '14px',
         overflow: 'hidden',
         background: '#0a1428',
@@ -157,88 +225,30 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
         border: '1px solid #e2e8f0',
       }}
     >
-      {/* ─── TOP RIGHT CONTROLS BAR: Satellite / Hybrid / Map / Fit Route / Key ─── */}
+      {/* ─── TOP RIGHT CONTROLS BAR ─── */}
       {mapState === 'loaded' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 14,
-            right: 14,
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            background: 'rgba(10, 20, 42, 0.82)',
-            backdropFilter: 'blur(10px)',
-            padding: '4px 6px',
-            borderRadius: 8,
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-          }}
-        >
+        <div className="rm-map-controls-bar">
           <button
-            style={{
-              background: currentMapType === 'satellite' ? '#2563eb' : 'transparent',
-              color: 'white',
-              border: 'none',
-              padding: '5px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            style={filterBtnStyle(currentMapType === 'satellite')}
             onClick={() => toggleMapType('satellite')}
           >
             Satellite
           </button>
           <button
-            style={{
-              background: currentMapType === 'hybrid' ? '#2563eb' : 'transparent',
-              color: 'white',
-              border: 'none',
-              padding: '5px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            style={filterBtnStyle(currentMapType === 'hybrid')}
             onClick={() => toggleMapType('hybrid')}
           >
             Hybrid
           </button>
           <button
-            style={{
-              background: currentMapType === 'roadmap' ? '#2563eb' : 'transparent',
-              color: 'white',
-              border: 'none',
-              padding: '5px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            style={filterBtnStyle(currentMapType === 'roadmap')}
             onClick={() => toggleMapType('roadmap')}
           >
             Map
           </button>
           <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)', margin: '0 2px' }} />
           <button
-            style={{
-              background: 'transparent',
-              color: 'white',
-              border: 'none',
-              padding: '5px 10px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
+            style={{ ...filterBtnStyle(false), display: 'flex', alignItems: 'center', gap: 4 }}
             onClick={handleFitRoute}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -248,15 +258,7 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
             Fit Route
           </button>
           <button
-            style={{
-              background: 'transparent',
-              color: 'rgba(255,255,255,0.7)',
-              border: 'none',
-              padding: '5px 8px',
-              borderRadius: 6,
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
+            style={{ ...filterBtnStyle(false), color: 'rgba(255,255,255,0.7)' }}
             title="Configure Google Maps API Key"
             onClick={() => setShowKeyInput(!showKeyInput)}
           >
@@ -265,33 +267,51 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
         </div>
       )}
 
+      {/* ─── MV/LV ROUTE FILTER (only when both types exist) ─── */}
+      {mapState === 'loaded' && hasBothTypes && (
+        <div className="rm-route-filter-bar">
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em', marginRight: 6 }}>
+            ROUTES
+          </span>
+          <button style={filterBtnStyle(routeFilter === 'all')} onClick={() => setRouteFilter('all')}>All</button>
+          <button
+            style={{
+              ...filterBtnStyle(routeFilter === 'mv'),
+              background: routeFilter === 'mv' ? ROUTE_COLORS.mv : 'transparent',
+            }}
+            onClick={() => setRouteFilter('mv')}
+          >
+            MV
+          </button>
+          <button
+            style={{
+              ...filterBtnStyle(routeFilter === 'lv'),
+              background: routeFilter === 'lv' ? ROUTE_COLORS.lv : 'transparent',
+              color: routeFilter === 'lv' ? '#0f172a' : 'white',
+            }}
+            onClick={() => setRouteFilter('lv')}
+          >
+            LV
+          </button>
+          <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
+          {/* Inline legend */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: '#cbd5e1' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span style={{ width: 14, height: 3, background: ROUTE_COLORS.mv, borderRadius: 2, display: 'inline-block' }} />
+              MV
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span style={{ width: 14, height: 3, background: ROUTE_COLORS.lv, borderRadius: 2, display: 'inline-block' }} />
+              LV
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ─── FLOATING ROUTE OVERVIEW PANEL (TOP-LEFT OF MAP) ─── */}
       {routeStats && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 14,
-            left: 14,
-            zIndex: 10,
-            background: 'rgba(9, 18, 38, 0.85)',
-            backdropFilter: 'blur(12px)',
-            color: 'white',
-            borderRadius: 10,
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            padding: '12px 14px',
-            minWidth: 175,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            pointerEvents: 'auto',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: '#ffffff',
-              marginBottom: 10,
-            }}
-          >
+        <div className="rm-route-overview-panel">
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#ffffff', marginBottom: 10 }}>
             Route Overview
           </div>
 
@@ -323,36 +343,10 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
       )}
 
       {/* ─── BOTTOM LEFT CONTROL: Fullscreen Toggle ─── */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 14,
-          left: 14,
-          zIndex: 10,
-          display: 'flex',
-          gap: 6,
-        }}
-      >
+      <div className="rm-map-bottom-left">
         <button
           onClick={toggleFullscreen}
-          style={{
-            background: 'rgba(10, 20, 42, 0.82)',
-            backdropFilter: 'blur(8px)',
-            color: 'white',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius: 6,
-            padding: '5px 10px',
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(25, 38, 68, 0.95)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(10, 20, 42, 0.82)')}
+          className="rm-map-fullscreen-btn"
         >
           {isFullscreen ? (
             <>
@@ -377,7 +371,7 @@ export function RouteMap({ route, onPointSelect, apiKey, onApiKeyChange }: Route
         <div style={{
           position: 'absolute', top: 52, right: 14, zIndex: 20,
           background: '#0f172a', color: 'white', padding: 16, borderRadius: 10,
-          width: 320, boxShadow: '0 10px 25px rgba(0,0,0,0.5)', border: '1px solid #334155'
+          width: 320, maxWidth: 'calc(100% - 28px)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', border: '1px solid #334155'
         }}>
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
             Google Maps API Key

@@ -834,6 +834,7 @@ export function MeasurementWorkspace() {
               <div className="rm-results-right-col">
                 <RouteMap
                   route={selectedRoute}
+                  allRoutes={result?.routes}
                   apiKey={apiKey}
                   onApiKeyChange={handleApiKeyChange}
                 />

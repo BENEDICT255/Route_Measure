@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Globe3D } from '../components/Globe3D';
 import { HowItWorksModal, AccuracyModal, PrivacyModal } from '../components/LandingModals';
 
 export function LandingPage() {
   const navigate = useNavigate();
-
-  // Active modal state
   const [activeModal, setActiveModal] = useState<'how-it-works' | 'accuracy' | 'privacy' | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const goToMeasure = () => {
-    // Smooth transition
     const mainElem = document.querySelector('.landing-viewport');
     if (mainElem) {
       mainElem.classList.add('page-exit');
@@ -18,6 +24,11 @@ export function LandingPage() {
     setTimeout(() => {
       navigate('/measure');
     }, 300);
+  };
+
+  const handleNavClick = (modal: 'how-it-works' | 'accuracy' | 'privacy') => {
+    setMobileMenuOpen(false);
+    setActiveModal(modal);
   };
 
   return (
@@ -35,7 +46,8 @@ export function LandingPage() {
           RouteMeasure
         </div>
 
-        <nav className="geo-nav">
+        {/* Desktop Nav */}
+        <nav className="geo-nav geo-nav-desktop">
           <button onClick={() => setActiveModal('how-it-works')}>How It Works</button>
           <button onClick={() => setActiveModal('accuracy')}>Accuracy</button>
           <button onClick={() => setActiveModal('privacy')}>Privacy</button>
@@ -46,7 +58,39 @@ export function LandingPage() {
             </svg>
           </button>
         </nav>
+
+        {/* Mobile Hamburger */}
+        <button
+          className="geo-hamburger"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          )}
+        </button>
       </header>
+
+      {/* ─── MOBILE MENU DRAWER ───────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="geo-mobile-menu">
+          <button onClick={() => handleNavClick('how-it-works')}>How It Works</button>
+          <button onClick={() => handleNavClick('accuracy')}>Accuracy</button>
+          <button onClick={() => handleNavClick('privacy')}>Privacy</button>
+          <button className="geo-cta-btn geo-mobile-cta" onClick={() => { setMobileMenuOpen(false); goToMeasure(); }}>
+            Start Measuring
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M5 3L9 7L5 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* ─── MAIN LANDING COMPOSITION (HERO LEFT + 3D GLOBE RIGHT) ─── */}
       <main className="geo-main">
@@ -136,7 +180,7 @@ export function LandingPage() {
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M4 8H12M4 8L6 6M4 8L6 10M12 8L10 6M12 8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Drag to rotate the globe →
+              {isMobile ? 'Swipe to rotate' : 'Drag to rotate the globe'}
             </div>
 
             {/* Bottom Right Privacy Badge */}
