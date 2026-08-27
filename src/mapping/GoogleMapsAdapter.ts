@@ -361,6 +361,10 @@ export class GoogleMapsAdapter implements MapAdapter {
     this.loaded = false;
   }
 
+  getMap(): any {
+    return this.map;
+  }
+
   isLoaded(): boolean {
     return this.loaded;
   }
