@@ -1,15 +1,15 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { WorkbookAnalysis, RawSheetData } from '../types/workbook';
-import type { MeasurementResult, MeasuredRoute } from '../types/coordinates';
+import type { MeasurementResult } from '../types/coordinates';
 import { validateFile, readWorkbook, generateFileHash } from '../workbook/workbookReader';
 import { selectBestSheet } from '../workbook/workbookAnalysis';
 import { processWorkbook } from '../workbook/normalization';
 import { formatDistanceMetres, formatDistanceKilometres, formatCoordinate } from '../utils/formatters';
 import { ACCEPTED_FILE_EXTENSIONS, MAX_FILE_SIZE_DISPLAY } from '../utils/constants';
-import { CALCULATION_METHOD } from '../measurement/geodesic';
 import { ValidationSeverity } from '../types/coordinates';
 import { RouteMap } from '../components/RouteMap';
+import { classifyRoute, ROUTE_COLORS } from '../mapping/GoogleMapsAdapter';
 import { HowItWorksModal, AccuracyModal, PrivacyModal } from '../components/LandingModals';
 
 type WorkspaceScreen = 'upload-confirm' | 'results';
@@ -32,7 +32,8 @@ export function MeasurementWorkspace() {
   const [sheetData, setSheetData] = useState<RawSheetData | null>(null);
 
   const [result, setResult] = useState<MeasurementResult | null>(null);
-  const [selectedRoute, setSelectedRoute] = useState<MeasuredRoute | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<'coordinates' | 'segments'>('coordinates');
   const [activeModal, setActiveModal] = useState<'how-it-works' | 'accuracy' | 'privacy' | null>(null);
@@ -139,7 +140,7 @@ export function MeasurementWorkspace() {
         }
 
         setResult(measurementResult);
-        setSelectedRoute(measurementResult.routes[0]);
+        setSelectedFilter('all');
         setIsProcessing(false);
         setScreen('results');
       } catch (err) {
@@ -160,20 +161,99 @@ export function MeasurementWorkspace() {
     setAnalysis(null);
     setSheetData(null);
     setResult(null);
-    setSelectedRoute(null);
+    setSelectedFilter('all');
     setActiveTab('coordinates');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
+  // Compute active routes and displayed summary dynamically
+  const { activeRoutes, displayedSummary, isAllSelected } = useMemo(() => {
+    if (!result || result.routes.length === 0) {
+      return { activeRoutes: [], displayedSummary: null, isAllSelected: false };
+    }
+
+    if (selectedFilter === 'all' || result.routes.length === 1) {
+      const all = result.routes;
+      const totalDist = all.reduce((sum, r) => sum + r.totalDistanceMetres, 0);
+      const totalPoints = all.reduce((sum, r) => sum + r.coordinateCount, 0);
+      const totalSegments = all.reduce((sum, r) => sum + r.segmentCount, 0);
+      const startPoint = all[0].startPoint;
+      const endPoint = all[all.length - 1].endPoint;
+
+      const allPointDistances = all.flatMap((r) =>
+        r.pointDistances.map((pd) => ({
+          ...pd,
+          routeName: r.name,
+          routeCls: classifyRoute(r.name),
+        }))
+      );
+      const allSegments = all.flatMap((r) =>
+        r.segments.map((s) => ({
+          ...s,
+          routeName: r.name,
+          routeCls: classifyRoute(r.name),
+        }))
+      );
+
+      return {
+        activeRoutes: all,
+        isAllSelected: true,
+        displayedSummary: {
+          name: all.length > 1 ? `All Routes (${all.map((r) => r.name).join(' & ')})` : all[0].name,
+          totalDistanceMetres: totalDist,
+          coordinateCount: totalPoints,
+          segmentCount: totalSegments,
+          startPoint,
+          endPoint,
+          pointDistances: allPointDistances,
+          segments: allSegments,
+        },
+      };
+    }
+
+    // Match by uid, or classified type, or name
+    const matched =
+      result.routes.find((r) => r.uid === selectedFilter) ||
+      result.routes.find((r) => classifyRoute(r.name) === selectedFilter.toLowerCase()) ||
+      result.routes.find((r) => r.name.toLowerCase() === selectedFilter.toLowerCase()) ||
+      result.routes[0];
+
+    return {
+      activeRoutes: [matched],
+      isAllSelected: false,
+      displayedSummary: {
+        name: matched.name,
+        totalDistanceMetres: matched.totalDistanceMetres,
+        coordinateCount: matched.coordinateCount,
+        segmentCount: matched.segmentCount,
+        startPoint: matched.startPoint,
+        endPoint: matched.endPoint,
+        pointDistances: matched.pointDistances.map((pd) => ({
+          ...pd,
+          routeName: matched.name,
+          routeCls: classifyRoute(matched.name),
+        })),
+        segments: matched.segments.map((s) => ({
+          ...s,
+          routeName: matched.name,
+          routeCls: classifyRoute(matched.name),
+        })),
+      },
+    };
+  }, [result, selectedFilter]);
+
+  const handleFilterChange = useCallback((filter: string) => {
+    setSelectedFilter(filter);
+  }, []);
+
   const handleExportExcel = useCallback(async () => {
-    if (!result || !selectedRoute) return;
+    if (!result || !displayedSummary) return;
 
     try {
       const ExcelJS = await import('exceljs');
       const { saveAs } = await import('file-saver');
 
       const workbook = new ExcelJS.Workbook();
-      const route = selectedRoute;
 
       const summarySheet = workbook.addWorksheet('Route Summary');
       summarySheet.columns = [
@@ -182,13 +262,13 @@ export function MeasurementWorkspace() {
       ];
 
       summarySheet.addRows([
-        { prop: 'Route', value: route.name },
-        { prop: 'Coordinate Points', value: route.coordinateCount },
-        { prop: 'Segments', value: route.segmentCount },
-        { prop: 'Start Point', value: route.startPoint.displayLabel },
-        { prop: 'End Point', value: route.endPoint.displayLabel },
-        { prop: 'Coordinate-Derived Route Distance (m)', value: Number(route.totalDistanceMetres.toFixed(1)) },
-        { prop: 'Coordinate-Derived Route Distance (km)', value: Number((route.totalDistanceMetres / 1000).toFixed(4)) },
+        { prop: 'Route Selection', value: displayedSummary.name },
+        { prop: 'Coordinate Points', value: displayedSummary.coordinateCount },
+        { prop: 'Segments', value: displayedSummary.segmentCount },
+        { prop: 'Start Point', value: displayedSummary.startPoint.displayLabel },
+        { prop: 'End Point', value: displayedSummary.endPoint.displayLabel },
+        { prop: 'Coordinate-Derived Route Distance (m)', value: Number(displayedSummary.totalDistanceMetres.toFixed(1)) },
+        { prop: 'Coordinate-Derived Route Distance (km)', value: Number((displayedSummary.totalDistanceMetres / 1000).toFixed(4)) },
         { prop: 'Source File', value: result.sourceFile },
         { prop: 'Source Worksheet', value: result.sourceSheet },
         { prop: 'Processing Timestamp', value: result.processingTimestamp },
@@ -196,21 +276,36 @@ export function MeasurementWorkspace() {
         { prop: 'Application Version', value: result.applicationVersion },
         { prop: 'File Hash (SHA-256)', value: fileHash },
       ]);
+
+      if (isAllSelected && result.routes.length > 1) {
+        summarySheet.addRow({ prop: '---', value: '---' });
+        summarySheet.addRow({ prop: 'PER-ROUTE BREAKDOWN', value: '' });
+        result.routes.forEach((r) => {
+          summarySheet.addRow({
+            prop: `${r.name} Distance`,
+            value: `${formatDistanceMetres(r.totalDistanceMetres)} (${formatDistanceKilometres(r.totalDistanceMetres)})`,
+          });
+        });
+      }
+
       summarySheet.getRow(1).font = { bold: true };
 
       const coordSheet = workbook.addWorksheet('Coordinates');
-      coordSheet.columns = [
+      const coordCols = [
         { header: 'Sequence', key: 'seq', width: 12 },
+        ...(isAllSelected && result.routes.length > 1 ? [{ header: 'Route', key: 'route', width: 16 }] : []),
         { header: 'Point', key: 'point', width: 25 },
         { header: 'Latitude', key: 'lat', width: 15 },
         { header: 'Longitude', key: 'lon', width: 15 },
         { header: 'Description', key: 'desc', width: 30 },
         { header: 'Cumulative Distance (m)', key: 'cumDist', width: 25 },
       ];
+      coordSheet.columns = coordCols;
 
-      route.pointDistances.forEach((pd) => {
+      displayedSummary.pointDistances.forEach((pd, idx) => {
         coordSheet.addRow({
-          seq: pd.point.sequenceIndex + 1,
+          seq: idx + 1,
+          ...(isAllSelected && result.routes.length > 1 ? { route: pd.routeName } : {}),
           point: pd.point.displayLabel,
           lat: pd.point.latitude,
           lon: pd.point.longitude,
@@ -221,8 +316,9 @@ export function MeasurementWorkspace() {
       coordSheet.getRow(1).font = { bold: true };
 
       const segSheet = workbook.addWorksheet('Segments');
-      segSheet.columns = [
+      const segCols = [
         { header: 'Segment', key: 'seg', width: 12 },
+        ...(isAllSelected && result.routes.length > 1 ? [{ header: 'Route', key: 'route', width: 16 }] : []),
         { header: 'From', key: 'from', width: 25 },
         { header: 'To', key: 'to', width: 25 },
         { header: 'From Lat', key: 'fromLat', width: 14 },
@@ -232,10 +328,12 @@ export function MeasurementWorkspace() {
         { header: 'Segment Distance (m)', key: 'dist', width: 22 },
         { header: 'Cumulative Distance (m)', key: 'cumDist', width: 22 },
       ];
+      segSheet.columns = segCols;
 
-      route.segments.forEach((seg) => {
+      displayedSummary.segments.forEach((seg, idx) => {
         segSheet.addRow({
-          seg: seg.segmentNumber,
+          seg: idx + 1,
+          ...(isAllSelected && result.routes.length > 1 ? { route: seg.routeName } : {}),
           from: seg.fromPoint.displayLabel,
           to: seg.toPoint.displayLabel,
           fromLat: seg.fromPoint.latitude,
@@ -252,56 +350,66 @@ export function MeasurementWorkspace() {
       const blob = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      saveAs(blob, `RouteMeasure_${route.name.replace(/[^a-zA-Z0-9]/g, '_')}_Report.xlsx`);
+      const cleanName = displayedSummary.name.replace(/[^a-zA-Z0-9]/g, '_');
+      saveAs(blob, `RouteMeasure_${cleanName}_Report.xlsx`);
     } catch (err) {
       console.error('Export failed:', err);
       setError('Failed to generate the Excel report.');
     }
-  }, [result, selectedRoute, fileHash]);
+  }, [result, displayedSummary, isAllSelected, fileHash]);
 
   const handleExportKML = useCallback(() => {
-    if (!selectedRoute) return;
+    if (!result || !displayedSummary) return;
 
-    const route = selectedRoute;
-    const coordString = route.points.map((p) => `${p.longitude},${p.latitude},0`).join('\n              ');
+    const routesToExport = activeRoutes;
+    const folders = routesToExport
+      .map((route) => {
+        const coordString = route.points.map((p) => `${p.longitude},${p.latitude},0`).join('\n              ');
+        const placemarks = route.points
+          .map(
+            (p) => `
+          <Placemark>
+            <name>${escapeXml(p.displayLabel)}</name>
+            <description>${escapeXml(p.description || `Sequence: ${p.sequenceIndex + 1}`)}</description>
+            <Point>
+              <coordinates>${p.longitude},${p.latitude},0</coordinates>
+            </Point>
+          </Placemark>`
+          )
+          .join('');
 
-    const placemarks = route.points
-      .map(
-        (p) => `
+        const cls = classifyRoute(route.name);
+        const colorKml = cls === 'lv' ? 'ff42b9f4' : 'ffff6b2f';
+
+        return `
+      <Folder>
+        <name>${escapeXml(route.name)} (${formatDistanceMetres(route.totalDistanceMetres)})</name>
+        <Style id="style_${escapeXml(route.uid)}">
+          <LineStyle>
+            <color>${colorKml}</color>
+            <width>4</width>
+          </LineStyle>
+        </Style>
         <Placemark>
-          <name>${escapeXml(p.displayLabel)}</name>
-          <description>${escapeXml(p.description || `Sequence: ${p.sequenceIndex + 1}`)}</description>
-          <Point>
-            <coordinates>${p.longitude},${p.latitude},0</coordinates>
-          </Point>
-        </Placemark>`
-      )
+          <name>${escapeXml(route.name)} Route Line</name>
+          <styleUrl>#style_${escapeXml(route.uid)}</styleUrl>
+          <LineString>
+            <coordinates>
+                ${coordString}
+            </coordinates>
+          </LineString>
+        </Placemark>
+        ${placemarks}
+      </Folder>`;
+      })
       .join('');
 
     const kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>${escapeXml(route.name)} — RouteMeasure</name>
-    <description>Coordinate-derived route distance: ${formatDistanceMetres(route.totalDistanceMetres)} (${formatDistanceKilometres(route.totalDistanceMetres)})</description>
-    <Style id="routeStyle">
-      <LineStyle>
-        <color>ff0066ff</color>
-        <width>3</width>
-      </LineStyle>
-    </Style>
-    <Folder>
-      <name>${escapeXml(route.name)}</name>
-      <Placemark>
-        <name>${escapeXml(route.name)} Route Line</name>
-        <styleUrl>#routeStyle</styleUrl>
-        <LineString>
-          <coordinates>
-              ${coordString}
-          </coordinates>
-        </LineString>
-      </Placemark>
-      ${placemarks}
-    </Folder>
+    <name>${escapeXml(displayedSummary.name)} — RouteMeasure</name>
+    <description>Coordinate-derived route distance: ${formatDistanceMetres(displayedSummary.totalDistanceMetres)} (${formatDistanceKilometres(displayedSummary.totalDistanceMetres)})</description>
+    ${folders}
   </Document>
 </kml>`;
 
@@ -309,10 +417,11 @@ export function MeasurementWorkspace() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `RouteMeasure_${route.name.replace(/[^a-zA-Z0-9]/g, '_')}.kml`;
+    const cleanName = displayedSummary.name.replace(/[^a-zA-Z0-9]/g, '_');
+    a.download = `RouteMeasure_${cleanName}.kml`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [selectedRoute]);
+  }, [result, activeRoutes, displayedSummary]);
 
   return (
     <div className="rm-workspace-root">
@@ -384,7 +493,6 @@ export function MeasurementWorkspace() {
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#crosshair-grid)" />
-              {/* Subtle contour lines on outer edges */}
               <path d="M -50,150 Q 250,50 600,180 T 1200,90" fill="none" stroke="#2563eb" strokeWidth="0.9" strokeOpacity="0.08" />
               <path d="M -30,220 Q 300,110 700,240 T 1300,140" fill="none" stroke="#2563eb" strokeWidth="0.9" strokeOpacity="0.06" />
               <path d="M 800,500 Q 1100,320 1500,450" fill="none" stroke="#2563eb" strokeWidth="0.8" strokeOpacity="0.07" />
@@ -490,7 +598,6 @@ export function MeasurementWorkspace() {
 
                 {analysis ? (
                   <>
-                    {/* Detected Fields List */}
                     <div className="rm-detected-fields-grid">
                       <div className="rm-field-row">
                         <div className="rm-field-label">
@@ -593,7 +700,6 @@ export function MeasurementWorkspace() {
                     </div>
                   </>
                 ) : (
-                  /* Empty state before file upload */
                   <div className="rm-confirm-empty-state">
                     <div className="rm-empty-icon">
                       <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
@@ -612,36 +718,91 @@ export function MeasurementWorkspace() {
       )}
 
       {/* ─── SCREEN 2: RESULTS ────────────────────────────────────── */}
-      {screen === 'results' && result && selectedRoute && (
-        <div className="rm-results-workspace-layout">
-          {/* LEFT SIDEBAR (Dark Navy) */}
-          <aside className="rm-results-sidebar">
-            <div className="rm-sidebar-top-section">
-              <button className="rm-sidebar-btn active">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 13L7 5L11 9L14 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="3" cy="13" r="1.5" fill="currentColor"/>
-                  <circle cx="7" cy="5" r="1.5" fill="currentColor"/>
-                  <circle cx="11" cy="9" r="1.5" fill="currentColor"/>
-                  <circle cx="14" cy="3" r="1.5" fill="currentColor"/>
+      {screen === 'results' && result && displayedSummary && (
+        <div className={`rm-results-workspace-layout ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`} style={{ position: 'relative' }}>
+          {/* FLOATING EXPAND TAB (Visible only when sidebar is collapsed) */}
+          {sidebarCollapsed && (
+            <button
+              className="rm-sidebar-expand-tab"
+              onClick={() => setSidebarCollapsed(false)}
+              title="Show Sidebar"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span>Sidebar</span>
+            </button>
+          )}
+
+          {/* LEFT SIDEBAR (Dark Navy, Collapsible) */}
+          <aside className={`rm-results-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+            {/* Sidebar Top Section & Collapse Button */}
+            <div className="rm-sidebar-header">
+              <div style={{ flex: 1 }}>
+                <button className="rm-sidebar-btn active" style={{ cursor: 'default' }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 13L7 5L11 9L14 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="3" cy="13" r="1.5" fill="currentColor"/>
+                    <circle cx="7" cy="5" r="1.5" fill="currentColor"/>
+                    <circle cx="11" cy="9" r="1.5" fill="currentColor"/>
+                    <circle cx="14" cy="3" r="1.5" fill="currentColor"/>
+                  </svg>
+                  Process Route
+                </button>
+              </div>
+              <button
+                className="rm-sidebar-collapse-btn"
+                onClick={() => setSidebarCollapsed(true)}
+                title="Collapse Sidebar"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 13L5 8L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Process Route
               </button>
             </div>
 
             {/* Route Selection (if multi-route) */}
             {result.routes.length > 1 && (
               <div className="rm-sidebar-section">
-                <div className="rm-sidebar-section-title">Routes</div>
-                {result.routes.map((r) => (
-                  <button
-                    key={r.uid}
-                    className={`rm-sidebar-btn ${selectedRoute?.uid === r.uid ? 'active' : ''}`}
-                    onClick={() => setSelectedRoute(r)}
-                  >
-                    {r.name}
-                  </button>
-                ))}
+                <div className="rm-sidebar-section-title">ROUTES</div>
+
+                {/* ALL ROUTES BUTTON */}
+                <button
+                  className={`rm-sidebar-btn ${isAllSelected ? 'active' : ''}`}
+                  onClick={() => handleFilterChange('all')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 4H14M2 8H14M2 12H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  All ({result.routes.map((r) => r.name).join(' & ')})
+                </button>
+
+                {/* INDIVIDUAL ROUTE BUTTONS */}
+                {result.routes.map((r) => {
+                  const cls = classifyRoute(r.name);
+                  const color = ROUTE_COLORS[cls];
+                  const isRouteActive = !isAllSelected && activeRoutes.some((ar) => ar.uid === r.uid);
+                  return (
+                    <button
+                      key={r.uid}
+                      className={`rm-sidebar-btn ${isRouteActive ? 'active' : ''}`}
+                      onClick={() => handleFilterChange(r.uid)}
+                    >
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: color,
+                          display: 'inline-block',
+                          flexShrink: 0,
+                          boxShadow: `0 0 6px ${color}88`,
+                        }}
+                      />
+                      {r.name}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -691,16 +852,18 @@ export function MeasurementWorkspace() {
           {/* MAIN WORKSPACE CONTENT */}
           <main className="rm-results-main">
             <div className="rm-results-grid">
-              {/* LEFT COLUMN: MEASUREMENT SUMMARY + DATA TABLES + METHODOLOGY */}
+              {/* LEFT COLUMN: MEASUREMENT SUMMARY + DATA TABLES */}
               <div className="rm-results-left-col">
                 {/* 1. Distance Summary Card */}
                 <div className="rm-card rm-summary-card">
-                  <div className="rm-summary-title">Coordinate-Derived Route Distance</div>
+                  <div className="rm-summary-title">
+                    Coordinate-Derived Route Distance {result.routes.length > 1 && `(${displayedSummary.name})`}
+                  </div>
                   <div className="rm-summary-dist-m">
-                    {formatDistanceMetres(selectedRoute.totalDistanceMetres)}
+                    {formatDistanceMetres(displayedSummary.totalDistanceMetres)}
                   </div>
                   <div className="rm-summary-dist-km">
-                    {formatDistanceKilometres(selectedRoute.totalDistanceMetres)}
+                    {formatDistanceKilometres(displayedSummary.totalDistanceMetres)}
                   </div>
 
                   {/* 4 Summary Metrics */}
@@ -711,7 +874,7 @@ export function MeasurementWorkspace() {
                           <circle cx="8" cy="8" r="6" stroke="#60a5fa" strokeWidth="1.5"/>
                           <circle cx="8" cy="8" r="2" fill="#3b82f6"/>
                         </svg>
-                        <span className="rm-metric-val">{selectedRoute.coordinateCount}</span>
+                        <span className="rm-metric-val">{displayedSummary.coordinateCount}</span>
                       </div>
                       <span className="rm-metric-label">POINTS</span>
                     </div>
@@ -721,7 +884,7 @@ export function MeasurementWorkspace() {
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                           <path d="M2 10L6 6L10 10L14 6" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                        <span className="rm-metric-val">{selectedRoute.segmentCount}</span>
+                        <span className="rm-metric-val">{displayedSummary.segmentCount}</span>
                       </div>
                       <span className="rm-metric-label">SEGMENTS</span>
                     </div>
@@ -731,7 +894,7 @@ export function MeasurementWorkspace() {
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                           <path d="M4 12L12 4M12 4H6M12 4V10" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                        <span className="rm-metric-val">{selectedRoute.startPoint.displayLabel}</span>
+                        <span className="rm-metric-val">{displayedSummary.startPoint.displayLabel}</span>
                       </div>
                       <span className="rm-metric-label">START</span>
                     </div>
@@ -741,7 +904,7 @@ export function MeasurementWorkspace() {
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                           <path d="M4 4L12 12M12 12H6M12 12V6" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                        <span className="rm-metric-val">{selectedRoute.endPoint.displayLabel}</span>
+                        <span className="rm-metric-val">{displayedSummary.endPoint.displayLabel}</span>
                       </div>
                       <span className="rm-metric-label">END</span>
                     </div>
@@ -755,13 +918,13 @@ export function MeasurementWorkspace() {
                       className={`rm-data-tab ${activeTab === 'coordinates' ? 'active' : ''}`}
                       onClick={() => setActiveTab('coordinates')}
                     >
-                      Coordinates ({selectedRoute.coordinateCount})
+                      Coordinates ({displayedSummary.coordinateCount})
                     </button>
                     <button
                       className={`rm-data-tab ${activeTab === 'segments' ? 'active' : ''}`}
                       onClick={() => setActiveTab('segments')}
                     >
-                      Segments ({selectedRoute.segmentCount})
+                      Segments ({displayedSummary.segmentCount})
                     </button>
                   </div>
 
@@ -771,6 +934,7 @@ export function MeasurementWorkspace() {
                         <thead>
                           <tr>
                             <th>SEQ</th>
+                            {isAllSelected && result.routes.length > 1 && <th>ROUTE</th>}
                             <th>POINT</th>
                             <th>LATITUDE</th>
                             <th>LONGITUDE</th>
@@ -778,9 +942,16 @@ export function MeasurementWorkspace() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedRoute.pointDistances.map((pd) => (
-                            <tr key={pd.point.uid}>
-                              <td className="rm-seq-col">{pd.point.sequenceIndex + 1}</td>
+                          {displayedSummary.pointDistances.map((pd, idx) => (
+                            <tr key={`${pd.routeName}_${pd.point.uid}_${idx}`}>
+                              <td className="rm-seq-col">{idx + 1}</td>
+                              {isAllSelected && result.routes.length > 1 && (
+                                <td>
+                                  <span className={`rm-route-tag rm-route-tag-${pd.routeCls}`}>
+                                    {pd.routeName}
+                                  </span>
+                                </td>
+                              )}
                               <td className="rm-point-label">{pd.point.displayLabel}</td>
                               <td className="numeric">{formatCoordinate(pd.point.latitude)}</td>
                               <td className="numeric">{formatCoordinate(pd.point.longitude)}</td>
@@ -796,6 +967,7 @@ export function MeasurementWorkspace() {
                         <thead>
                           <tr>
                             <th>SEGMENT</th>
+                            {isAllSelected && result.routes.length > 1 && <th>ROUTE</th>}
                             <th>FROM</th>
                             <th>TO</th>
                             <th>SEGMENT DISTANCE</th>
@@ -803,9 +975,16 @@ export function MeasurementWorkspace() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedRoute.segments.map((seg) => (
-                            <tr key={seg.segmentNumber}>
-                              <td className="rm-seq-col">{seg.segmentNumber}</td>
+                          {displayedSummary.segments.map((seg, idx) => (
+                            <tr key={`${seg.routeName}_${seg.segmentNumber}_${idx}`}>
+                              <td className="rm-seq-col">{idx + 1}</td>
+                              {isAllSelected && result.routes.length > 1 && (
+                                <td>
+                                  <span className={`rm-route-tag rm-route-tag-${seg.routeCls}`}>
+                                    {seg.routeName}
+                                  </span>
+                                </td>
+                              )}
                               <td>{seg.fromPoint.displayLabel}</td>
                               <td>{seg.toPoint.displayLabel}</td>
                               <td className="numeric font-medium">{formatDistanceMetres(seg.distanceMetres)}</td>
@@ -817,24 +996,15 @@ export function MeasurementWorkspace() {
                     )}
                   </div>
                 </div>
-
-                {/* 3. Methodology Strip */}
-                <div className="rm-methodology-strip">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="rm-shield-icon">
-                    <path d="M8 2L3 4.5V8C3 11 5.5 13.5 8 14C10.5 13.5 13 11 13 8V4.5L8 2Z" fill="#eff6ff" stroke="#2563eb" strokeWidth="1.4"/>
-                    <path d="M6 8L7.5 9.5L10 6.5" stroke="#2563eb" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <div>
-                    <strong>Methodology:</strong> {CALCULATION_METHOD}.
-                  </div>
-                </div>
               </div>
 
               {/* RIGHT COLUMN: DOMINANT SATELLITE MAP */}
               <div className="rm-results-right-col">
                 <RouteMap
-                  route={selectedRoute}
-                  allRoutes={result?.routes}
+                  route={activeRoutes[0] || null}
+                  allRoutes={result.routes}
+                  selectedFilter={selectedFilter}
+                  onFilterChange={handleFilterChange}
                   apiKey={apiKey}
                   onApiKeyChange={handleApiKeyChange}
                 />

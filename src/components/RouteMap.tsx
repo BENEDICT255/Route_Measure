@@ -1,22 +1,30 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import type { MeasuredRoute, RoutePoint } from '../types/coordinates';
 import { GoogleMapsAdapter, classifyRoute, ROUTE_COLORS } from '../mapping/GoogleMapsAdapter';
-import type { RouteClassification, RouteRenderOptions } from '../mapping/GoogleMapsAdapter';
+import type { RouteRenderOptions } from '../mapping/GoogleMapsAdapter';
 import type { MapType } from '../types/map';
 import { Geodesic } from 'geographiclib-geodesic';
 import { formatDistanceMetres, formatDistanceKilometres } from '../utils/formatters';
 
-type RouteFilter = 'all' | 'mv' | 'lv';
-
 interface RouteMapProps {
   route: MeasuredRoute | null;
   allRoutes?: MeasuredRoute[];
+  selectedFilter: string;
+  onFilterChange: (filter: string) => void;
   onPointSelect?: (point: RoutePoint) => void;
   apiKey?: string;
   onApiKeyChange?: (key: string) => void;
 }
 
-export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChange }: RouteMapProps) {
+export function RouteMap({
+  route,
+  allRoutes,
+  selectedFilter,
+  onFilterChange,
+  onPointSelect,
+  apiKey,
+  onApiKeyChange,
+}: RouteMapProps) {
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<GoogleMapsAdapter | null>(null);
@@ -27,48 +35,103 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showKeyInput, setShowKeyInput] = useState<boolean>(false);
   const [inputKeyVal, setInputKeyVal] = useState<string>(apiKey || '');
-  const [routeFilter, setRouteFilter] = useState<RouteFilter>('all');
 
-  // Classify routes
+  // Master list of all routes available
+  const availableRoutes = useMemo(() => {
+    return allRoutes && allRoutes.length > 0 ? allRoutes : route ? [route] : [];
+  }, [allRoutes, route]);
+
+  // Determine which routes are active/visible based on selectedFilter
+  const visibleRoutes = useMemo(() => {
+    if (availableRoutes.length === 0) return [];
+    if (selectedFilter === 'all') return availableRoutes;
+
+    const matched = availableRoutes.filter(
+      (r) =>
+        r.uid === selectedFilter ||
+        classifyRoute(r.name) === selectedFilter.toLowerCase() ||
+        r.name.toLowerCase() === selectedFilter.toLowerCase()
+    );
+
+    return matched.length > 0 ? matched : availableRoutes;
+  }, [availableRoutes, selectedFilter]);
+
+  // Classify routes for UI buttons and legends
   const routeClassifications = useMemo(() => {
-    const routes = allRoutes || (route ? [route] : []);
-    return routes.map(r => ({
+    return availableRoutes.map((r) => ({
       route: r,
       classification: classifyRoute(r.name),
     }));
-  }, [allRoutes, route]);
+  }, [availableRoutes]);
 
-  const hasMV = routeClassifications.some(r => r.classification === 'mv');
-  const hasLV = routeClassifications.some(r => r.classification === 'lv');
+  const hasMV = routeClassifications.some((r) => r.classification === 'mv');
+  const hasLV = routeClassifications.some((r) => r.classification === 'lv');
   const hasBothTypes = hasMV && hasLV;
 
-  // Dynamic Route Overview statistics
+  // Dynamic Route Overview statistics for active/visible routes
   const routeStats = useMemo(() => {
-    if (!route || route.segments.length === 0) return null;
+    if (visibleRoutes.length === 0) return null;
 
     const geod = Geodesic.WGS84;
+
+    if (visibleRoutes.length === 1) {
+      const r = visibleRoutes[0];
+      if (r.segments.length === 0) return null;
+
+      const inv = geod.Inverse(
+        r.startPoint.latitude,
+        r.startPoint.longitude,
+        r.endPoint.latitude,
+        r.endPoint.longitude
+      );
+      const bearing = inv.azi1 !== undefined ? (inv.azi1 + 360) % 360 : 0;
+
+      const segDists = r.segments.map((s) => s.distanceMetres);
+      const minSeg = Math.min(...segDists);
+      const maxSeg = Math.max(...segDists);
+      const avgSeg = r.totalDistanceMetres / r.segments.length;
+
+      return {
+        title: `${r.name} Overview`,
+        totalM: formatDistanceMetres(r.totalDistanceMetres),
+        totalKm: formatDistanceKilometres(r.totalDistanceMetres),
+        avgM: `${avgSeg.toFixed(1)} m`,
+        minM: `${minSeg.toFixed(1)} m`,
+        maxM: `${maxSeg.toFixed(1)} m`,
+        bearing: `${bearing.toFixed(2)}°`,
+      };
+    }
+
+    // Combined across all visible routes
+    const allSegments = visibleRoutes.flatMap((r) => r.segments);
+    if (allSegments.length === 0) return null;
+
+    const totalDist = visibleRoutes.reduce((sum, r) => sum + r.totalDistanceMetres, 0);
+    const segDists = allSegments.map((s) => s.distanceMetres);
+    const minSeg = Math.min(...segDists);
+    const maxSeg = Math.max(...segDists);
+    const avgSeg = totalDist / allSegments.length;
+
+    const first = visibleRoutes[0];
+    const last = visibleRoutes[visibleRoutes.length - 1];
     const inv = geod.Inverse(
-      route.startPoint.latitude,
-      route.startPoint.longitude,
-      route.endPoint.latitude,
-      route.endPoint.longitude
+      first.startPoint.latitude,
+      first.startPoint.longitude,
+      last.endPoint.latitude,
+      last.endPoint.longitude
     );
     const bearing = inv.azi1 !== undefined ? (inv.azi1 + 360) % 360 : 0;
 
-    const segDists = route.segments.map((s) => s.distanceMetres);
-    const minSeg = Math.min(...segDists);
-    const maxSeg = Math.max(...segDists);
-    const avgSeg = route.totalDistanceMetres / route.segments.length;
-
     return {
-      totalM: formatDistanceMetres(route.totalDistanceMetres),
-      totalKm: formatDistanceKilometres(route.totalDistanceMetres),
+      title: 'Route Overview (All)',
+      totalM: formatDistanceMetres(totalDist),
+      totalKm: formatDistanceKilometres(totalDist),
       avgM: `${avgSeg.toFixed(1)} m`,
       minM: `${minSeg.toFixed(1)} m`,
       maxM: `${maxSeg.toFixed(1)} m`,
       bearing: `${bearing.toFixed(2)}°`,
     };
-  }, [route]);
+  }, [visibleRoutes]);
 
   // Initialize Map
   useEffect(() => {
@@ -104,46 +167,46 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
     };
   }, [apiKey]);
 
-  // Re-render routes when route/filter changes
+  // Re-render ONLY visible routes when selection or available routes change
   useEffect(() => {
     if (!adapterRef.current?.isLoaded()) return;
+    if (visibleRoutes.length === 0) {
+      adapterRef.current.clear();
+      return;
+    }
 
-    const routes = allRoutes || (route ? [route] : []);
-    if (routes.length === 0) return;
-
-    if (hasBothTypes && routes.length > 1) {
-      // Multi-route mode with MV/LV classification
-      const renderData = routes.map(r => {
+    if (visibleRoutes.length > 1) {
+      // Multi-route mode with classification colours
+      const renderData = visibleRoutes.map((r) => {
         const cls = classifyRoute(r.name);
-        const isActive = routeFilter === 'all' || routeFilter === cls;
         return {
           route: r,
           options: {
             strokeColor: ROUTE_COLORS[cls],
             haloColor: '#FFFFFF',
-            opacity: isActive ? 0.9 : 0.18,
+            opacity: 0.95,
           } as RouteRenderOptions,
         };
       });
 
       adapterRef.current.renderMultipleRoutes(renderData, true);
-    } else if (route) {
-      // Single route mode
-      const cls = classifyRoute(route.name);
-      adapterRef.current.renderRoute(route, {
+    } else {
+      // Single route mode — ONLY render this 1 route, other routes completely absent
+      const singleRoute = visibleRoutes[0];
+      const cls = classifyRoute(singleRoute.name);
+      adapterRef.current.renderRoute(singleRoute, {
         strokeColor: ROUTE_COLORS[cls],
         haloColor: '#FFFFFF',
-        opacity: 0.9,
+        opacity: 0.95,
       });
     }
-  }, [route, allRoutes, routeFilter, hasBothTypes]);
+  }, [visibleRoutes]);
 
   // Listen to Fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFull = !!document.fullscreenElement;
       setIsFullscreen(isFull);
-      // Trigger map resize after fullscreen transition
       setTimeout(() => adapterRef.current?.triggerResize(), 200);
     };
 
@@ -153,7 +216,7 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
     };
   }, []);
 
-  // Trigger resize on container size changes (orientation, layout reflow)
+  // Trigger resize on container size changes
   useEffect(() => {
     if (!mapWrapperRef.current) return;
     const resizeObserver = new ResizeObserver(() => {
@@ -169,8 +232,15 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
   };
 
   const handleFitRoute = () => {
-    if (route && adapterRef.current?.isLoaded()) {
-      adapterRef.current.fitRoute(route);
+    if (!adapterRef.current?.isLoaded()) return;
+    if (visibleRoutes.length === 1) {
+      adapterRef.current.fitRoute(visibleRoutes[0]);
+    } else if (visibleRoutes.length > 1) {
+      const renderData = visibleRoutes.map((r) => ({
+        route: r,
+        options: { strokeColor: ROUTE_COLORS[classifyRoute(r.name)] },
+      }));
+      adapterRef.current.renderMultipleRoutes(renderData, true);
     }
   };
 
@@ -195,13 +265,26 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
     setShowKeyInput(false);
   };
 
-  // Segmented filter button style
+  // Filter button active checker
+  const isFilterActive = (filterKey: string) => {
+    if (filterKey === 'all') return selectedFilter === 'all';
+    return (
+      selectedFilter.toLowerCase() === filterKey.toLowerCase() ||
+      visibleRoutes.some(
+        (r) =>
+          r.uid === selectedFilter &&
+          (r.name.toLowerCase() === filterKey.toLowerCase() ||
+            classifyRoute(r.name) === filterKey.toLowerCase())
+      )
+    );
+  };
+
   const filterBtnStyle = (active: boolean): React.CSSProperties => ({
     background: active ? '#2563eb' : 'transparent',
     color: 'white',
     border: 'none',
-    padding: '4px 10px',
-    borderRadius: 5,
+    padding: '4px 11px',
+    borderRadius: 6,
     fontSize: 11,
     fontWeight: active ? 700 : 500,
     cursor: 'pointer',
@@ -267,43 +350,98 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
         </div>
       )}
 
-      {/* ─── MV/LV ROUTE FILTER (only when both types exist) ─── */}
-      {mapState === 'loaded' && hasBothTypes && (
+      {/* ─── ROUTE FILTER BUTTONS ON MAP (shown whenever multi-route exists) ─── */}
+      {mapState === 'loaded' && availableRoutes.length > 1 && (
         <div className="rm-route-filter-bar">
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em', marginRight: 6 }}>
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em', marginRight: 6 }}>
             ROUTES
           </span>
-          <button style={filterBtnStyle(routeFilter === 'all')} onClick={() => setRouteFilter('all')}>All</button>
+
+          {/* ALL BUTTON */}
           <button
-            style={{
-              ...filterBtnStyle(routeFilter === 'mv'),
-              background: routeFilter === 'mv' ? ROUTE_COLORS.mv : 'transparent',
-            }}
-            onClick={() => setRouteFilter('mv')}
+            style={filterBtnStyle(isFilterActive('all'))}
+            onClick={() => onFilterChange('all')}
           >
-            MV
+            All
           </button>
-          <button
-            style={{
-              ...filterBtnStyle(routeFilter === 'lv'),
-              background: routeFilter === 'lv' ? ROUTE_COLORS.lv : 'transparent',
-              color: routeFilter === 'lv' ? '#0f172a' : 'white',
-            }}
-            onClick={() => setRouteFilter('lv')}
-          >
-            LV
-          </button>
-          <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
-          {/* Inline legend */}
+
+          {/* DYNAMIC ROUTE BUTTONS (e.g. MV, LV) */}
+          {hasBothTypes ? (
+            <>
+              <button
+                style={{
+                  ...filterBtnStyle(isFilterActive('mv')),
+                  background: isFilterActive('mv') ? ROUTE_COLORS.mv : 'transparent',
+                }}
+                onClick={() => onFilterChange('mv')}
+              >
+                MV
+              </button>
+              <button
+                style={{
+                  ...filterBtnStyle(isFilterActive('lv')),
+                  background: isFilterActive('lv') ? ROUTE_COLORS.lv : 'transparent',
+                  color: isFilterActive('lv') ? '#0f172a' : 'white',
+                }}
+                onClick={() => onFilterChange('lv')}
+              >
+                LV
+              </button>
+            </>
+          ) : (
+            availableRoutes.map((r) => {
+              const cls = classifyRoute(r.name);
+              const color = ROUTE_COLORS[cls];
+              const active = isFilterActive(r.uid) || isFilterActive(r.name);
+              return (
+                <button
+                  key={r.uid}
+                  style={{
+                    ...filterBtnStyle(active),
+                    background: active ? color : 'transparent',
+                    color: active && cls === 'lv' ? '#0f172a' : 'white',
+                  }}
+                  onClick={() => onFilterChange(r.uid)}
+                >
+                  {r.name}
+                </button>
+              );
+            })
+          )}
+
+          {/* INLINE LEGEND */}
+          <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.18)', margin: '0 4px' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: '#cbd5e1' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <span style={{ width: 14, height: 3, background: ROUTE_COLORS.mv, borderRadius: 2, display: 'inline-block' }} />
-              MV
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <span style={{ width: 14, height: 3, background: ROUTE_COLORS.lv, borderRadius: 2, display: 'inline-block' }} />
-              LV
-            </span>
+            {hasMV && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span
+                  style={{
+                    width: 14,
+                    height: 3.5,
+                    background: ROUTE_COLORS.mv,
+                    borderRadius: 2,
+                    display: 'inline-block',
+                    boxShadow: '0 0 6px rgba(47,107,255,0.6)',
+                  }}
+                />
+                MV
+              </span>
+            )}
+            {hasLV && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span
+                  style={{
+                    width: 14,
+                    height: 3.5,
+                    background: ROUTE_COLORS.lv,
+                    borderRadius: 2,
+                    display: 'inline-block',
+                    boxShadow: '0 0 6px rgba(244,185,66,0.6)',
+                  }}
+                />
+                LV
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -312,7 +450,7 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
       {routeStats && (
         <div className="rm-route-overview-panel">
           <div style={{ fontSize: 12, fontWeight: 700, color: '#ffffff', marginBottom: 10 }}>
-            Route Overview
+            {routeStats.title}
           </div>
 
           <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -344,21 +482,30 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
 
       {/* ─── BOTTOM LEFT CONTROL: Fullscreen Toggle ─── */}
       <div className="rm-map-bottom-left">
-        <button
-          onClick={toggleFullscreen}
-          className="rm-map-fullscreen-btn"
-        >
+        <button onClick={toggleFullscreen} className="rm-map-fullscreen-btn">
           {isFullscreen ? (
             <>
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                <path d="M4 1v3H1M10 1v3h3M4 13v-3H1M10 13v-3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path
+                  d="M4 1v3H1M10 1v3h3M4 13v-3H1M10 13v-3h3"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               Exit Fullscreen
             </>
           ) : (
             <>
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                <path d="M1 4V1h3M13 4V1h-3M1 10v3h3M13 10v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path
+                  d="M1 4V1h3M13 4V1h-3M1 10v3h3M13 10v3h-3"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               Full Screen
             </>
@@ -368,11 +515,22 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
 
       {/* ─── API KEY INPUT MODAL ─── */}
       {showKeyInput && (
-        <div style={{
-          position: 'absolute', top: 52, right: 14, zIndex: 20,
-          background: '#0f172a', color: 'white', padding: 16, borderRadius: 10,
-          width: 320, maxWidth: 'calc(100% - 28px)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', border: '1px solid #334155'
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 52,
+            right: 14,
+            zIndex: 20,
+            background: '#0f172a',
+            color: 'white',
+            padding: 16,
+            borderRadius: 10,
+            width: 320,
+            maxWidth: 'calc(100% - 28px)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            border: '1px solid #334155',
+          }}
+        >
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
             Google Maps API Key
           </div>
@@ -385,9 +543,14 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
             value={inputKeyVal}
             onChange={(e) => setInputKeyVal(e.target.value)}
             style={{
-              width: '100%', padding: '6px 10px', borderRadius: 6,
-              border: '1px solid #475569', background: '#1e293b',
-              color: 'white', fontSize: 12, marginBottom: 10
+              width: '100%',
+              padding: '6px 10px',
+              borderRadius: 6,
+              border: '1px solid #475569',
+              background: '#1e293b',
+              color: 'white',
+              fontSize: 12,
+              marginBottom: 10,
             }}
           />
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -398,10 +561,7 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
             >
               Cancel
             </button>
-            <button
-              className="btn btn-sm btn-accent"
-              onClick={handleSaveApiKey}
-            >
+            <button className="btn btn-sm btn-accent" onClick={handleSaveApiKey}>
               Save & Reload
             </button>
           </div>
@@ -413,30 +573,62 @@ export function RouteMap({ route, allRoutes, onPointSelect, apiKey, onApiKeyChan
 
       {/* Loading state */}
       {mapState === 'loading' && (
-        <div style={{
-          position: 'absolute', inset: 0, background: '#0a1428',
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', gap: 12, zIndex: 5
-        }}>
-          <div className="spinner" style={{ width: 36, height: 36, borderColor: '#334155', borderTopColor: '#38bdf8' }}></div>
-          <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>Loading Satellite Imagery...</div>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#0a1428',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            zIndex: 5,
+          }}
+        >
+          <div
+            className="spinner"
+            style={{ width: 36, height: 36, borderColor: '#334155', borderTopColor: '#38bdf8' }}
+          ></div>
+          <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>
+            Loading Satellite Imagery...
+          </div>
         </div>
       )}
 
       {/* Graceful Fallback overlay */}
       {mapState === 'error' && (
-        <div className="map-fallback" style={{ position: 'absolute', inset: 0, background: '#0f172a', color: 'white', zIndex: 5 }}>
+        <div
+          className="map-fallback"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#0f172a',
+            color: 'white',
+            zIndex: 5,
+          }}
+        >
           <div style={{ fontSize: 32 }}>🛰️</div>
-          <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 15 }}>Satellite Map Visualization</div>
+          <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 15 }}>
+            Satellite Map Visualization
+          </div>
           <div style={{ fontSize: 12, color: '#94a3b8', maxWidth: 360, lineHeight: 1.5 }}>
             {errorMessage}
           </div>
-          {route && (
-            <div style={{
-              marginTop: 12, padding: '10px 18px', background: '#1e293b',
-              borderRadius: 8, fontSize: 13, fontWeight: 600, border: '1px solid #334155', color: '#38bdf8'
-            }}>
-              Route Distance: {route.totalDistanceMetres.toFixed(1)} m ({(route.totalDistanceMetres / 1000).toFixed(4)} km)
+          {routeStats && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 18px',
+                background: '#1e293b',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid #334155',
+                color: '#38bdf8',
+              }}
+            >
+              Route Distance: {routeStats.totalM} ({routeStats.totalKm})
             </div>
           )}
         </div>
