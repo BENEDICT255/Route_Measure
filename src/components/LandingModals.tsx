@@ -183,11 +183,307 @@ export function PrivacyModal({ isOpen, onClose, onStartMeasuring }: ModalProps) 
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
+          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
             Close
           </button>
           <button className="btn btn-accent" onClick={onStartMeasuring}>
             Start Measuring →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Features Modal Overlay */
+export function FeaturesModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button className="modal-close" onClick={onClose} aria-label="Close modal">
+          ✕
+        </button>
+
+        <div className="modal-header">
+          <div className="modal-badge">Platform Capabilities</div>
+          <h2 className="modal-title">Powerful Geospatial Toolset</h2>
+          <p className="modal-subtitle">Engineered for utility engineers, surveyors, and infrastructure planners.</p>
+        </div>
+
+        <div className="modal-steps-grid">
+          <div className="modal-step-card">
+            <div className="modal-step-num">⚡</div>
+            <h3>Dual Measurement Modes</h3>
+            <p>Continuous LV/MV transmission line polyline route measurement &amp; Multi-site Point-to-Point radial distance calculation.</p>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">🌐</div>
+            <h3>High-Precision Karney Geodesics</h3>
+            <p>Micron-accurate ellipsoidal mathematics via GeographicLib. Eliminates spherical distortion found in Haversine formulas.</p>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">🛰️</div>
+            <h3>Hybrid Satellite Visualization</h3>
+            <p>Interactive satellite overlays with custom pole markers, segment vectors, and automatic camera fitting.</p>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">📊</div>
+            <h3>Professional Multi-Format Exports</h3>
+            <p>Generate styled Excel reports with formulas and KML files ready for Google Earth Pro and GIS applications.</p>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+            Close
+          </button>
+          <button className="btn btn-accent" onClick={onStartMeasuring}>
+            Start Measuring →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Use Cases Modal Overlay */
+export function UseCasesModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button className="modal-close" onClick={onClose} aria-label="Close modal">
+          ✕
+        </button>
+
+        <div className="modal-header">
+          <div className="modal-badge">Industry Applications</div>
+          <h2 className="modal-title">Built for Precision Infrastructure</h2>
+        </div>
+
+        <div className="modal-steps-grid">
+          <div className="modal-step-card">
+            <div className="modal-step-num">01</div>
+            <h3>Power Transmission & Distribution</h3>
+            <p>Calculate exact line lengths for Low Voltage (LV) and Medium Voltage (MV) overhead &amp; underground feeder lines.</p>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">02</div>
+            <h3>Telecommunications & Fiber</h3>
+            <p>Measure fiber optic backbone routes, mast-to-tower point-to-point links, and right-of-way spans.</p>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">03</div>
+            <h3>Logistics & Warehouse Hubs</h3>
+            <p>Determine exact geodesic distance from central distribution warehouses to regional distribution sites.</p>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">04</div>
+            <h3>Surveying & Environmental Assessment</h3>
+            <p>Audit site coordinates, verify boundary distances, and export GIS-ready KML geometries.</p>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+            Close
+          </button>
+          <button className="btn btn-accent" onClick={onStartMeasuring}>
+            Start Measuring →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Pricing Modal Overlay */
+export function PricingModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button className="modal-close" onClick={onClose} aria-label="Close modal">
+          ✕
+        </button>
+
+        <div className="modal-header">
+          <div className="modal-badge">Transparent Access</div>
+          <h2 className="modal-title">Open &amp; Enterprise-Ready</h2>
+          <p className="modal-subtitle">RouteMeasure is built with a client-side architecture that respects your privacy.</p>
+        </div>
+
+        <div className="modal-steps-grid">
+          <div className="modal-step-card" style={{ borderColor: 'rgba(59, 130, 246, 0.4)', background: 'rgba(30, 58, 110, 0.25)' }}>
+            <div className="modal-step-num" style={{ color: '#60a5fa' }}>COMMUNITY / PRO</div>
+            <h3>Free &amp; Client-Side</h3>
+            <p style={{ marginBottom: '8px' }}>Full access to WGS84 geodesic calculations, Excel parsing, satellite visualization, and multi-sheet exports.</p>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '12px' }}>$0 / forever</div>
+          </div>
+
+          <div className="modal-step-card">
+            <div className="modal-step-num">ENTERPRISE</div>
+            <h3>Custom Deployments</h3>
+            <p>Self-hosted offline intranet deployments, custom GIS integrations, and corporate single sign-on.</p>
+            <div style={{ fontSize: '14px', color: '#94a3b8', marginTop: '12px' }}>Contact Engineering Team</div>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+            Close
+          </button>
+          <button className="btn btn-accent" onClick={onStartMeasuring}>
+            Start Measuring →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** FAQ Modal Overlay */
+export function FaqModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button className="modal-close" onClick={onClose} aria-label="Close modal">
+          ✕
+        </button>
+
+        <div className="modal-header">
+          <div className="modal-badge">Frequently Asked Questions</div>
+          <h2 className="modal-title">Questions &amp; Answers</h2>
+        </div>
+
+        <div className="modal-body-text">
+          <div className="modal-info-box" style={{ marginBottom: '12px' }}>
+            <h4 style={{ color: '#60a5fa', marginBottom: '4px' }}>What file formats are supported?</h4>
+            <p>Standard Microsoft Excel workbooks (.xlsx, .xls) and CSV files containing latitude and longitude columns.</p>
+          </div>
+
+          <div className="modal-info-box" style={{ marginBottom: '12px' }}>
+            <h4 style={{ color: '#60a5fa', marginBottom: '4px' }}>How is this different from Google Maps measuring tool?</h4>
+            <p>RouteMeasure computes ellipsoidal geodesics using GeographicLib (Karney WGS84 algorithm) directly between every sequential coordinate point, supporting batch files with hundreds of points, multi-sheet splitting, and automated report exports.</p>
+          </div>
+
+          <div className="modal-info-box">
+            <h4 style={{ color: '#60a5fa', marginBottom: '4px' }}>Is my coordinate data private?</h4>
+            <p>Yes. All workbook reading, coordinate parsing, geodesic math, and export generation happen directly inside your browser.</p>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+            Close
+          </button>
+          <button className="btn btn-accent" onClick={onStartMeasuring}>
+            Start Measuring →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Interactive Demo Modal Overlay */
+export function DemoModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button className="modal-close" onClick={onClose} aria-label="Close modal">
+          ✕
+        </button>
+
+        <div className="modal-header">
+          <div className="modal-badge">Interactive Preview</div>
+          <h2 className="modal-title">RouteMeasure Workflow</h2>
+          <p className="modal-subtitle">Experience how seamless transmission line and distance measurement is.</p>
+        </div>
+
+        <div className="modal-steps-grid">
+          <div className="modal-step-card">
+            <div className="modal-step-num">Step 1</div>
+            <h3>Drop Your Excel Sheet</h3>
+            <p>Upload files like <code>transmission_line.xlsx</code> or <code>site_locations.xlsx</code>.</p>
+          </div>
+          <div className="modal-step-card">
+            <div className="modal-step-num">Step 2</div>
+            <h3>Auto-Detect Columns</h3>
+            <p>Coordinates, tower IDs, and voltage levels (LV/MV) are parsed instantly.</p>
+          </div>
+          <div className="modal-step-card">
+            <div className="modal-step-num">Step 3</div>
+            <h3>Instant Calculation</h3>
+            <p>Full route length computed in meters and kilometers with sub-millimeter precision.</p>
+          </div>
+          <div className="modal-step-card">
+            <div className="modal-step-num">Step 4</div>
+            <h3>Satellite &amp; Export</h3>
+            <p>Visualize polylines on Google Maps satellite imagery and download Excel/KML reports.</p>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+            Close
+          </button>
+          <button className="btn btn-accent" onClick={onStartMeasuring}>
+            Start Measuring Now →
           </button>
         </div>
       </div>
