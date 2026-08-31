@@ -2,28 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 /* ═══════════════════════════════════════════════════════════════════
-   Globe3D — High Performance Photorealistic Interactive Earth
+   Globe3D — Realistic Interactive Daylight Earth (Approved Version)
    ═══════════════════════════════════════════════════════════════════
-   • Ultra-smooth 60fps rendering with zero main-thread freezing
-   • Photorealistic day/night terminator with glowing city lights
-   • Atmospheric Fresnel rim glow & subtle orbiting trajectory rings
-   • Independent background starfield
-   • State-machine inertia physics & auto-resume idle rotation
-   • Full WebGL resource lifecycle management & memory disposal
+   • Photorealistic daylight Earth with subtle atmospheric rim
+   • Americas initial orientation matching approved visual reference
+   • Gentle cloud layer & independent starfield
+   • Delta-time physics (idle → drag → inertia → rest → idle)
+   • Resource disposal for zero memory leaks & high performance
    ═══════════════════════════════════════════════════════════════════ */
 
-const EARTH_RADIUS = 0.62;
-const SPHERE_SEGMENTS = 52;
+const EARTH_RADIUS = 0.6;
+const SPHERE_SEGMENTS = 64;
 
 // Rotation physics
 const IDLE_SPEED_DEG_PER_SEC = 0.35;
 const IDLE_SPEED = (IDLE_SPEED_DEG_PER_SEC * Math.PI) / 180;
-const DRAG_SENSITIVITY = 0.0045;
-const PITCH_CLAMP = (55 * Math.PI) / 180;
-const DAMPING = 0.93;
-const VELOCITY_THRESHOLD = 0.00002;
-const IDLE_RESUME_DELAY = 3500;
-const IDLE_EASE_DURATION = 1200;
+const DRAG_SENSITIVITY = 0.005;
+const PITCH_CLAMP = (60 * Math.PI) / 180;
+const DAMPING = 0.92;
+const VELOCITY_THRESHOLD = 0.00003;
+const IDLE_RESUME_DELAY = 4000;
+const IDLE_EASE_DURATION = 1500;
 
 export function Globe3D() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,19 +50,19 @@ export function Globe3D() {
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.15;
     container.appendChild(renderer.domElement);
 
     // ─── SCENE & CAMERA ──────────────────────────────────────────
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
 
     const computeCameraZ = () => {
       const w = container.clientWidth || width;
       const h = container.clientHeight || height;
       const minDim = Math.min(w, h);
-      return THREE.MathUtils.clamp(2.45 - minDim / 950, 1.45, 2.15);
+      return THREE.MathUtils.clamp(2.6 - minDim / 900, 1.4, 2.2);
     };
 
     camera.position.set(0, 0, computeCameraZ());
@@ -72,46 +71,48 @@ export function Globe3D() {
     const globeGroup = new THREE.Group();
     scene.add(globeGroup);
 
-    // Initial orientation: Center on Africa/Europe/Middle East matching reference
-    let globeYaw = 0.25;
-    let globePitch = 0.12;
+    // Initial rotation: Americas centered matching approved reference
+    let globeYaw = 1.2;
+    let globePitch = 0.15;
     globeGroup.rotation.order = 'YXZ';
     globeGroup.rotation.y = globeYaw;
     globeGroup.rotation.x = globePitch;
 
-    // ─── TEXTURES WITH FAST PROGRESSIVE LOADING ──────────────────
+    // ─── TEXTURES ────────────────────────────────────────────────
     const loader = new THREE.TextureLoader();
 
-    // Use optimized textures for fast instant paint
-    const dayTexture = loader.load('/textures/earth-day.jpg', (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.needsUpdate = true;
+    const earthDayTex = loader.load('/textures/earth-day.jpg', (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.needsUpdate = true;
     });
-    dayTexture.colorSpace = THREE.SRGBColorSpace;
-    dayTexture.minFilter = THREE.LinearFilter;
-    disposables.push(dayTexture);
+    earthDayTex.colorSpace = THREE.SRGBColorSpace;
+    earthDayTex.minFilter = THREE.LinearFilter;
+    disposables.push(earthDayTex);
 
-    const nightTexture = loader.load('/textures/earth-night.jpg', (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.needsUpdate = true;
+    const earthNightTex = loader.load('/textures/earth-night.jpg', (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.needsUpdate = true;
     });
-    nightTexture.colorSpace = THREE.SRGBColorSpace;
-    nightTexture.minFilter = THREE.LinearFilter;
-    disposables.push(nightTexture);
+    earthNightTex.colorSpace = THREE.SRGBColorSpace;
+    earthNightTex.minFilter = THREE.LinearFilter;
+    disposables.push(earthNightTex);
 
-    const cloudTexture = loader.load('/texture/earthCloud.png');
-    cloudTexture.colorSpace = THREE.SRGBColorSpace;
-    cloudTexture.minFilter = THREE.LinearFilter;
-    disposables.push(cloudTexture);
+    const earthCloudTex = loader.load('/texture/earthCloud.png', (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.needsUpdate = true;
+    });
+    earthCloudTex.colorSpace = THREE.SRGBColorSpace;
+    earthCloudTex.minFilter = THREE.LinearFilter;
+    disposables.push(earthCloudTex);
 
-    // ─── SUN DIRECTION (Top-Right illumination) ──────────────────
-    const sunDir = new THREE.Vector3(3.8, 2.5, 4.2).normalize();
+    // ─── SUN DIRECTION ───────────────────────────────────────────
+    const sunDir = new THREE.Vector3(4, 3, 5).normalize();
 
-    // ─── 1. EARTH SPHERE SHADER (Day/Night Blender) ──────────────
+    // ─── 1. EARTH SPHERE (Day/Night Shader) ──────────────────────
     const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
     disposables.push(earthGeo);
 
-    const earthVert = `
+    const earthDayNightVert = `
       varying vec2 vUv;
       varying vec3 vWorldNormal;
       varying vec3 vWorldPosition;
@@ -124,11 +125,12 @@ export function Globe3D() {
       }
     `;
 
-    const earthFrag = `
+    const earthDayNightFrag = `
       uniform sampler2D dayMap;
       uniform sampler2D nightMap;
       uniform vec3 sunDirection;
       uniform vec3 ambientColor;
+      uniform float ambientIntensity;
       varying vec2 vUv;
       varying vec3 vWorldNormal;
       varying vec3 vWorldPosition;
@@ -138,27 +140,26 @@ export function Globe3D() {
         vec3 lightDir = normalize(sunDirection);
 
         float NdotL = dot(normal, lightDir);
-        float dayFactor = smoothstep(-0.2, 0.28, NdotL);
+        float dayFactor = smoothstep(-0.15, 0.25, NdotL);
 
         vec4 dayColor = texture2D(dayMap, vUv);
         vec4 nightColor = texture2D(nightMap, vUv);
 
-        // Day lighting
+        // Day lighting: ambient + diffuse
         float diffuse = max(0.0, NdotL);
-        vec3 litDay = dayColor.rgb * (ambientColor + vec3(1.0, 0.98, 0.94) * (diffuse * 1.65));
+        vec3 litDay = dayColor.rgb * (ambientColor * ambientIntensity + vec3(1.0, 0.98, 0.92) * diffuse * 1.8);
 
-        // Night side: vibrant gold/amber city lights
-        vec3 litNight = nightColor.rgb * 1.55 + dayColor.rgb * 0.025;
+        // Night: city lights with subtle ambient
+        vec3 litNight = nightColor.rgb * 1.4 + dayColor.rgb * 0.03;
 
-        // Blend along terminator
         vec3 finalColor = mix(litNight, litDay, dayFactor);
 
-        // Ocean specular glint
+        // Ocean specular highlight
         vec3 viewDir = normalize(cameraPosition - vWorldPosition);
         vec3 halfDir = normalize(lightDir + viewDir);
-        float spec = pow(max(0.0, dot(normal, halfDir)), 32.0);
-        float oceanMask = clamp(1.0 - length(dayColor.rgb) * 1.3, 0.0, 1.0);
-        finalColor += vec3(0.18, 0.22, 0.3) * spec * oceanMask * dayFactor;
+        float spec = pow(max(0.0, dot(normal, halfDir)), 40.0);
+        float specMask = 1.0 - clamp(length(dayColor.rgb) * 1.2, 0.0, 1.0);
+        finalColor += vec3(0.15, 0.18, 0.22) * spec * specMask * dayFactor;
 
         gl_FragColor = vec4(finalColor, 1.0);
       }
@@ -166,13 +167,14 @@ export function Globe3D() {
 
     const earthMat = new THREE.ShaderMaterial({
       uniforms: {
-        dayMap: { value: dayTexture },
-        nightMap: { value: nightTexture },
+        dayMap: { value: earthDayTex },
+        nightMap: { value: earthNightTex },
         sunDirection: { value: sunDir },
-        ambientColor: { value: new THREE.Color(0.12, 0.15, 0.22) },
+        ambientColor: { value: new THREE.Color(0.12, 0.14, 0.2) },
+        ambientIntensity: { value: 1.0 },
       },
-      vertexShader: earthVert,
-      fragmentShader: earthFrag,
+      vertexShader: earthDayNightVert,
+      fragmentShader: earthDayNightFrag,
     });
     disposables.push(earthMat);
 
@@ -184,18 +186,17 @@ export function Globe3D() {
     disposables.push(cloudGeo);
 
     const cloudMat = new THREE.MeshPhongMaterial({
-      map: cloudTexture,
+      map: earthCloudTex,
       transparent: true,
-      opacity: 0.26,
+      opacity: 0.28,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
     });
     disposables.push(cloudMat);
 
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     globeGroup.add(cloudMesh);
 
-    // ─── 3. ATMOSPHERIC FRESNEL RIM GLOW ─────────────────────────
+    // ─── 3. THIN ATMOSPHERIC FRESNEL RIM ────────────────────────
     const atmosVert = `
       varying vec3 vWorldNormal;
       varying vec3 vWorldPosition;
@@ -206,7 +207,6 @@ export function Globe3D() {
         gl_Position = projectionMatrix * viewMatrix * worldPos;
       }
     `;
-
     const atmosFrag = `
       uniform vec3 sunDirection;
       varying vec3 vWorldNormal;
@@ -214,20 +214,20 @@ export function Globe3D() {
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorldPosition);
         float rim = 1.0 - max(0.0, dot(viewDir, vWorldNormal));
-        float intensity = pow(rim, 4.8) * 1.1;
+        float intensity = pow(rim, 6.0) * 1.0;
 
         float sunFacing = max(0.0, dot(vWorldNormal, sunDirection));
-        intensity *= (0.15 + 1.45 * sunFacing);
+        intensity *= (0.1 + 1.6 * sunFacing);
 
-        vec3 deepBlue = vec3(0.14, 0.38, 0.78);
-        vec3 brightCyan = vec3(0.32, 0.68, 1.0);
-        vec3 color = mix(deepBlue, brightCyan, sunFacing * 0.8);
+        vec3 deepBlue = vec3(0.16, 0.41, 0.72);
+        vec3 limbBlue = vec3(0.29, 0.62, 1.0);
+        vec3 color = mix(deepBlue, limbBlue, sunFacing * 0.7);
 
-        gl_FragColor = vec4(color, intensity * 0.55);
+        gl_FragColor = vec4(color, intensity * 0.45);
       }
     `;
 
-    const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.025, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
+    const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.022, SPHERE_SEGMENTS, SPHERE_SEGMENTS);
     disposables.push(atmosGeo);
 
     const atmosMat = new THREE.ShaderMaterial({
@@ -243,72 +243,59 @@ export function Globe3D() {
 
     scene.add(new THREE.Mesh(atmosGeo, atmosMat));
 
-    // ─── 4. ORBITAL TRAJECTORY RINGS ─────────────────────────────
-    const createOrbitRing = (radiusX: number, radiusY: number, tiltX: number, tiltY: number, colorHex: number, opacity: number) => {
-      const curve = new THREE.EllipseCurve(0, 0, radiusX, radiusY, 0, 2 * Math.PI, false, 0);
-      const points = curve.getPoints(100);
-      const ringGeo = new THREE.BufferGeometry().setFromPoints(points.map((p) => new THREE.Vector3(p.x, p.y, 0)));
-      disposables.push(ringGeo);
-
-      const ringMat = new THREE.LineBasicMaterial({
-        color: colorHex,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-      });
-      disposables.push(ringMat);
-
-      const ring = new THREE.Line(ringGeo, ringMat);
-      ring.rotation.x = tiltX;
-      ring.rotation.y = tiltY;
-      return ring;
-    };
-
-    const orbit1 = createOrbitRing(EARTH_RADIUS * 1.28, EARTH_RADIUS * 1.15, Math.PI / 3.2, Math.PI / 6, 0x38bdf8, 0.22);
-    const orbit2 = createOrbitRing(EARTH_RADIUS * 1.42, EARTH_RADIUS * 1.25, -Math.PI / 4, Math.PI / 4, 0x2563eb, 0.15);
-    scene.add(orbit1);
-    scene.add(orbit2);
-
-    // ─── 5. COSMIC STARFIELD ─────────────────────────────────────
-    const starCount = 450;
+    // ─── 4. STAR FIELD ───────────────────────────────────────────
+    const starCount = 600;
     const starPositions = new Float32Array(starCount * 3);
+    const starSizes = new Float32Array(starCount);
+
     for (let i = 0; i < starCount; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 22 + Math.random() * 20;
+      const r = 25 + Math.random() * 25;
 
       starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       starPositions[i * 3 + 2] = r * Math.cos(phi);
+
+      starSizes[i] = 0.5 + Math.random() * 1.5;
     }
 
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
     disposables.push(starGeo);
 
     const starMat = new THREE.PointsMaterial({
-      color: 0x93c5fd,
-      size: 0.065,
+      color: 0xdde4f0,
+      size: 0.08,
+      sizeAttenuation: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.7,
       depthWrite: false,
     });
     disposables.push(starMat);
 
-    const stars = new THREE.Points(starGeo, starMat);
-    scene.add(stars);
+    const starField = new THREE.Points(starGeo, starMat);
+    scene.add(starField);
 
-    // ─── 6. LIGHTING ─────────────────────────────────────────────
-    const sunLight = new THREE.DirectionalLight(0xfff6ea, 2.0);
-    sunLight.position.copy(sunDir.clone().multiplyScalar(10));
-    scene.add(sunLight);
+    // ─── 5. LIGHTING ─────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.15));
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.18);
-    scene.add(ambientLight);
+    const sun = new THREE.DirectionalLight(0xfff8ee, 2.2);
+    sun.position.copy(sunDir.clone().multiplyScalar(10));
+    scene.add(sun);
 
-    // ─── 7. INTERACTION PHYSICS STATE MACHINE ────────────────────
-    type State = 'IDLE' | 'DRAGGING' | 'INERTIA' | 'REST' | 'RETURNING_TO_IDLE';
-    let state: State = prefersReducedMotion ? 'REST' : 'IDLE';
+    const warmRim = new THREE.DirectionalLight(0xffcc88, 0.3);
+    warmRim.position.set(3, 4, 2);
+    scene.add(warmRim);
+
+    const coolFill = new THREE.DirectionalLight(0x3366aa, 0.08);
+    coolFill.position.set(-4, -1, -3);
+    scene.add(coolFill);
+
+    // ─── 6. ROTATION STATE MACHINE ───────────────────────────────
+    type GlobeState = 'IDLE' | 'DRAGGING' | 'INERTIA' | 'REST' | 'RETURNING_TO_IDLE';
+    let state: GlobeState = prefersReducedMotion ? 'REST' : 'IDLE';
 
     let velocityYaw = 0;
     let velocityPitch = 0;
@@ -352,7 +339,7 @@ export function Globe3D() {
 
     const onPointerUp = () => {
       if (state !== 'DRAGGING') return;
-      const maxVel = 0.035;
+      const maxVel = prefersReducedMotion ? 0.01 : 0.04;
       velocityYaw = Math.max(-maxVel, Math.min(maxVel, velocityYaw));
       velocityPitch = Math.max(-maxVel, Math.min(maxVel, velocityPitch));
       state = 'INERTIA';
@@ -365,7 +352,7 @@ export function Globe3D() {
     window.addEventListener('pointerup', onPointerUp, { passive: true });
     window.addEventListener('pointercancel', onPointerUp, { passive: true });
 
-    // ─── 8. ANIMATION LOOP (Delta-time based) ────────────────────
+    // ─── 7. ANIMATION LOOP ───────────────────────────────────────
     let frameId: number;
 
     const animate = () => {
@@ -376,7 +363,7 @@ export function Globe3D() {
       const rawDt = now - prevFrameTime;
       prevFrameTime = now;
 
-      const dt = Math.min(rawDt, 64);
+      const dt = Math.min(rawDt, 100);
       const frameFactor = dt / 16.667;
 
       switch (state) {
@@ -418,7 +405,9 @@ export function Globe3D() {
           const eased = t * t * (3 - 2 * t);
           globeYaw += IDLE_SPEED * eased * frameFactor;
 
-          if (t >= 1) state = 'IDLE';
+          if (t >= 1) {
+            state = 'IDLE';
+          }
           break;
         }
       }
@@ -427,9 +416,7 @@ export function Globe3D() {
       globeGroup.rotation.x = globePitch;
 
       if (!prefersReducedMotion) {
-        cloudMesh.rotation.y += 0.00007 * frameFactor;
-        orbit1.rotation.z += 0.0004 * frameFactor;
-        orbit2.rotation.z -= 0.0003 * frameFactor;
+        cloudMesh.rotation.y += 0.00008 * frameFactor;
       }
 
       renderer.render(scene, camera);
@@ -437,7 +424,7 @@ export function Globe3D() {
 
     animate();
 
-    // ─── RESIZE & VISIBILITY ─────────────────────────────────────
+    // ─── RESIZE ──────────────────────────────────────────────────
     const onResize = () => {
       if (!container) return;
       const w = container.clientWidth;
@@ -449,6 +436,7 @@ export function Globe3D() {
     };
     window.addEventListener('resize', onResize);
 
+    // ─── VISIBILITY ──────────────────────────────────────────────
     const onVisibility = () => {
       if (document.hidden) {
         cancelAnimationFrame(frameId);
@@ -459,7 +447,7 @@ export function Globe3D() {
     };
     document.addEventListener('visibilitychange', onVisibility);
 
-    // ─── DISPOSAL & CLEANUP ──────────────────────────────────────
+    // ─── CLEANUP ─────────────────────────────────────────────────
     return () => {
       disposed = true;
       cancelAnimationFrame(frameId);

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { WorkbookAnalysis, RawSheetData } from '../types/workbook';
 import type { MeasurementResult } from '../types/coordinates';
@@ -45,6 +45,21 @@ export function MeasurementWorkspace() {
   const [apiKey, setApiKey] = useState<string>(
     () => localStorage.getItem('gmaps_api_key') || (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || ''
   );
+
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('routemeasure_theme');
+    if (saved) return saved === 'dark';
+    return false;
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('routemeasure_theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => !prev);
+  };
 
   const handleApiKeyChange = (newKey: string) => {
     setApiKey(newKey);
@@ -457,6 +472,15 @@ export function MeasurementWorkspace() {
         </div>
 
         <div className="rm-header-actions">
+          <button
+            type="button"
+            className="rm-theme-toggle"
+            onClick={toggleTheme}
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle theme"
+          >
+            <span>{isDarkMode ? '☀️' : '🌙'}</span>
+          </button>
           <button className="rm-btn-clear" onClick={handleClear}>
             Clear
           </button>
