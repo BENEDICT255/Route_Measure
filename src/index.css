@@ -984,21 +984,28 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   width: 100vw;
   overflow: hidden;
   font-family: var(--font-sans);
-  background: #f4f6fa;
+  background: var(--rm-bg);
 }
 
 /* ─── 1. TOP APPLICATION HEADER ───────────────────────────────── */
 .rm-top-header {
-  background: #08132b;
-  color: white;
-  height: 60px;
-  min-height: 60px;
+  background: var(--rm-surface);
+  color: var(--rm-text-primary);
+  height: 54px;
+  min-height: 54px;
   padding: 0 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--rm-border);
   z-index: 50;
+}
+
+.rm-top-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .rm-logo {
@@ -1006,7 +1013,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: white;
+  color: var(--rm-text-primary);
   cursor: pointer;
 }
 
@@ -1018,67 +1025,73 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 .rm-logo-text {
   font-size: 16px;
   font-weight: 700;
-  color: white;
+  color: var(--rm-text-primary);
   letter-spacing: -0.01em;
 }
 
 .rm-header-center-text {
   font-size: 13px;
-  color: #cbd5e1;
+  color: var(--rm-text-muted);
   font-weight: 400;
   text-align: center;
+}
+
+.rm-header-center-badge {
+  font-size: 12px;
+  color: var(--rm-text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .rm-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .rm-btn-clear {
   background: transparent;
-  border: none;
-  color: #94a3b8;
-  font-size: 13px;
+  border: 1px solid var(--rm-border);
+  color: var(--rm-text-secondary);
+  font-size: 12px;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 6px 14px;
   cursor: pointer;
-  border-radius: 6px;
-  transition: color 0.15s ease;
+  border-radius: 8px;
+  transition: all 0.15s ease;
 }
 
 .rm-btn-clear:hover {
-  color: white;
+  color: var(--rm-text-primary);
+  border-color: var(--rm-text-secondary);
 }
 
 .rm-btn-new-upload {
-  background: #2563eb;
-  color: white;
+  background: var(--rm-text-primary);
+  color: var(--rm-surface);
   border: none;
   padding: 7px 16px;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
   transition: all 0.15s ease;
 }
 
 .rm-btn-new-upload:hover {
-  background: #1d4ed8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+  opacity: 0.85;
 }
 
 /* ─── 2. TWO-STEP PROGRESS INDICATOR ──────────────────────────── */
 .rm-step-bar-container {
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 12px 32px;
+  background: var(--rm-surface);
+  border-bottom: 1px solid var(--rm-border);
+  padding: 10px 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  min-height: 52px;
+  min-height: 46px;
   z-index: 40;
   width: 100%;
 }
@@ -1839,11 +1852,103 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   color: #b91c1c;
 }
 
+/* ─── UPLOAD MODAL OVERLAY ────────────────────────────────────── */
+.rm-upload-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(20, 24, 31, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rmModalFadeIn 0.2s ease;
+}
+
+@keyframes rmModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.rm-upload-modal-content {
+  background: var(--rm-surface);
+  border: 1px solid var(--rm-border);
+  border-radius: 20px;
+  width: 92%;
+  max-width: 780px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+  padding: 32px 36px;
+  position: relative;
+  animation: rmModalSlideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rmModalSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rm-upload-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--rm-border);
+  background: var(--rm-surface-subtle);
+  color: var(--rm-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.rm-upload-modal-close:hover {
+  color: var(--rm-text-primary);
+  border-color: var(--rm-text-secondary);
+}
+
+.rm-upload-modal-header {
+  margin-bottom: 24px;
+}
+
+.rm-upload-modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--rm-text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.rm-upload-modal-subtitle {
+  font-size: 13px;
+  color: var(--rm-text-secondary);
+}
+
+/* Two-column layout inside the upload modal */
+.rm-upload-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.rm-upload-modal-grid .rm-card {
+  border: 1px solid var(--rm-border);
+  border-radius: 14px;
+  background: var(--rm-surface);
+  padding: 24px;
+}
+
 /* ─── 4. SCREEN 2: RESULTS WORKSPACE ──────────────────────────── */
 .rm-results-workspace-layout {
   display: flex;
   flex: 1;
-  height: calc(100vh - 108px);
+  height: calc(100vh - 100px);
   overflow: hidden;
   background: var(--rm-bg);
 }
@@ -1878,7 +1983,19 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rm-border);
+}
+
+.rm-sidebar-title-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rm-text-primary);
+  letter-spacing: -0.01em;
 }
 
 .rm-sidebar-collapse-btn {
@@ -1993,11 +2110,12 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 }
 
 .rm-sidebar-btn.active {
-  background: #2563eb;
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
-  border-color: #2563eb;
+  background: var(--rm-surface-subtle);
+  color: var(--rm-text-primary);
+  font-weight: 700;
+  box-shadow: none;
+  border-color: var(--rm-border);
+  border-left: 3px solid var(--rm-text-primary);
 }
 
 .rm-sidebar-bottom-section {
@@ -2067,7 +2185,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 .rm-summary-dist-m {
   font-size: 34px;
   font-weight: 800;
-  color: #2563eb;
+  color: var(--rm-text-primary);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -2152,8 +2270,8 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 }
 
 .rm-data-tab.active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: var(--rm-text-primary);
+  border-bottom-color: var(--rm-text-primary);
   font-weight: 700;
 }
 

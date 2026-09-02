@@ -516,23 +516,25 @@ export function MeasurementWorkspace() {
         )}
       </div>
 
-      {/* ─── DISTANCE WORKSPACE (when mode is 'distance') ─────────── */}
-      {measurementMode === 'distance' ? (
+      {/* ─── DISTANCE WORKSPACE (when mode is 'distance' and results ready) ─── */}
+      {measurementMode === 'distance' && screen === 'results' ? (
         <DistanceWorkspace
           apiKey={apiKey}
           onApiKeyChange={handleApiKeyChange}
           onNewUpload={handleClear}
           stepBarElement={null}
         />
-      ) : measurementMode === null ? (
-        /* ─── MODE SELECTION (when no mode selected yet) ────────── */
+      ) : screen === 'results' && result && displayedSummary ? (
+        null /* Results rendered below */
+      ) : (
+        /* ─── MODE SELECTION (always visible during upload-confirm flow) ── */
         <div className="rm-upload-confirm-page">
           <div className="rm-geospatial-watermark" aria-hidden="true">
             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="crosshair-grid-m" width="120" height="120" patternUnits="userSpaceOnUse">
-                  <path d="M 60 55 L 60 65 M 55 60 L 65 60" stroke="#3b82f6" strokeWidth="0.8" strokeOpacity="0.12" />
-                  <circle cx="60" cy="60" r="1.5" fill="#3b82f6" fillOpacity="0.1" />
+                  <path d="M 60 55 L 60 65 M 55 60 L 65 60" stroke="#3b82f6" strokeWidth="0.8" strokeOpacity="0.06" />
+                  <circle cx="60" cy="60" r="1.5" fill="#3b82f6" fillOpacity="0.05" />
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#crosshair-grid-m)" />
@@ -600,47 +602,46 @@ export function MeasurementWorkspace() {
             </div>
           </div>
         </div>
-      ) : (
-        /* ─── EXISTING ROUTE MODE (when mode is 'route') ─────────── */
-        <>
-          {/* ─── SCREEN 1: UPLOAD & CONFIRM ───────────────────────────── */}
-          {screen === 'upload-confirm' && (
-            <div className="rm-upload-confirm-page">
-              {/* Decorative Engineering/Geospatial Watermark */}
-              <div className="rm-geospatial-watermark" aria-hidden="true">
-                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <pattern id="crosshair-grid" width="120" height="120" patternUnits="userSpaceOnUse">
-                      <path d="M 60 55 L 60 65 M 55 60 L 65 60" stroke="#3b82f6" strokeWidth="0.8" strokeOpacity="0.12" />
-                      <circle cx="60" cy="60" r="1.5" fill="#3b82f6" fillOpacity="0.1" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#crosshair-grid)" />
-                  <path d="M -50,150 Q 250,50 600,180 T 1200,90" fill="none" stroke="#2563eb" strokeWidth="0.9" strokeOpacity="0.08" />
-                  <path d="M -30,220 Q 300,110 700,240 T 1300,140" fill="none" stroke="#2563eb" strokeWidth="0.9" strokeOpacity="0.06" />
-                  <path d="M 800,500 Q 1100,320 1500,450" fill="none" stroke="#2563eb" strokeWidth="0.8" strokeOpacity="0.07" />
-                  <path d="M 750,580 Q 1150,380 1550,520" fill="none" stroke="#2563eb" strokeWidth="0.8" strokeOpacity="0.05" />
-                </svg>
+      )}
+
+      {/* ─── UPLOAD MODAL OVERLAY (appears over mode selection) ──────── */}
+      {measurementMode && screen === 'upload-confirm' && (
+        <div className="rm-upload-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) { setMeasurementMode(null); handleNewUpload(); } }}>
+          <div className="rm-upload-modal-content">
+            <button className="rm-upload-modal-close" onClick={() => { setMeasurementMode(null); handleNewUpload(); }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </button>
+
+            <div className="rm-upload-modal-header">
+              <div className="rm-upload-modal-title">
+                {measurementMode === 'route' ? 'Upload Route Coordinates' : 'Upload Site Coordinates'}
               </div>
+              <div className="rm-upload-modal-subtitle">
+                {measurementMode === 'route'
+                  ? 'Upload an Excel workbook with LV/MV network coordinate sequences'
+                  : 'Upload an Excel workbook with site coordinates for distance measurement'}
+              </div>
+            </div>
 
-              <div className="rm-upload-confirm-container">
-                {error && (
-                  <div className="rm-alert-box rm-alert-error">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
-                      <path d="M8 5V9M8 11.5V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                    <div style={{ whiteSpace: 'pre-line' }}>{error}</div>
-                  </div>
-                )}
+            {error && (
+              <div className="rm-alert-box rm-alert-error">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 5V9M8 11.5V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <div style={{ whiteSpace: 'pre-line' }}>{error}</div>
+              </div>
+            )}
 
-                <div className="rm-two-col-grid">
-                  {/* LEFT CARD: UPLOAD COORDINATE FILE */}
-                  <div className="rm-card rm-upload-card">
-                    <h2 className="rm-card-title">Upload Coordinate File</h2>
-                    <p className="rm-card-subtitle">
-                      Upload an Excel workbook containing latitude and longitude coordinates.
-                    </p>
+            <div className="rm-upload-modal-grid">
+              {/* LEFT: Upload */}
+              <div className="rm-card rm-upload-card">
+                <h2 className="rm-card-title">Upload Coordinate File</h2>
+                <p className="rm-card-subtitle">
+                  Upload an Excel workbook containing latitude and longitude coordinates.
+                </p>
 
                 <div
                   className={`rm-dropzone ${dragOver ? 'drag-over' : ''} ${fileObject ? 'has-file' : ''}`}
@@ -653,9 +654,9 @@ export function MeasurementWorkspace() {
                 >
                   <div className="rm-dropzone-icon">
                     <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
-                      <rect width="48" height="48" rx="24" fill="#eff6ff" />
-                      <path d="M24 16V28M24 16L19 21M24 16L29 21" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M14 30C12.5 30 11 28.5 11 27C11 25.5 12 24.2 13.5 24C14 20.5 17 18 20.5 18C23.5 18 26 19.8 27 22.5C28.5 22.5 30 23.5 30.5 25C32 25.5 33 27 33 28.5C33 30.5 31.5 32 29.5 32H15" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <rect width="48" height="48" rx="24" fill="var(--rm-surface-subtle)" />
+                      <path d="M24 16V28M24 16L19 21M24 16L29 21" stroke="var(--rm-text-secondary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M14 30C12.5 30 11 28.5 11 27C11 25.5 12 24.2 13.5 24C14 20.5 17 18 20.5 18C23.5 18 26 19.8 27 22.5C28.5 22.5 30 23.5 30.5 25C32 25.5 33 27 33 28.5C33 30.5 31.5 32 29.5 32H15" stroke="var(--rm-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
 
@@ -686,7 +687,6 @@ export function MeasurementWorkspace() {
                   style={{ display: 'none' }}
                 />
 
-                {/* File Upload Status Row */}
                 {fileObject && (
                   <div className="rm-file-status-row">
                     <div className="rm-file-status-left">
@@ -712,7 +712,7 @@ export function MeasurementWorkspace() {
                 )}
               </div>
 
-              {/* RIGHT CARD: CONFIRM DETECTED DATA */}
+              {/* RIGHT: Confirm */}
               <div className="rm-card rm-confirm-card">
                 <h2 className="rm-card-title">Confirm Detected Data</h2>
                 <p className="rm-card-subtitle">
@@ -810,7 +810,7 @@ export function MeasurementWorkspace() {
 
                     {/* Confirmation Actions */}
                     <div className="rm-confirm-actions">
-                      <button className="rm-btn-cancel" onClick={handleNewUpload}>
+                      <button className="rm-btn-cancel" onClick={() => { setMeasurementMode(null); handleNewUpload(); }}>
                         Cancel
                       </button>
                       <button
@@ -857,21 +857,19 @@ export function MeasurementWorkspace() {
             </button>
           )}
 
-          {/* LEFT SIDEBAR (Dark Navy, Collapsible) */}
+          {/* LEFT SIDEBAR (Collapsible) */}
           <aside className={`rm-results-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
             {/* Sidebar Top Section & Collapse Button */}
             <div className="rm-sidebar-header">
-              <div style={{ flex: 1 }}>
-                <button className="rm-sidebar-btn active" style={{ cursor: 'default' }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 13L7 5L11 9L14 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    <circle cx="3" cy="13" r="1.5" fill="currentColor"/>
-                    <circle cx="7" cy="5" r="1.5" fill="currentColor"/>
-                    <circle cx="11" cy="9" r="1.5" fill="currentColor"/>
-                    <circle cx="14" cy="3" r="1.5" fill="currentColor"/>
-                  </svg>
-                  Process Route
-                </button>
+              <div className="rm-sidebar-title-badge">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 13L7 5L11 9L14 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="3" cy="13" r="1.5" fill="currentColor"/>
+                  <circle cx="7" cy="5" r="1.5" fill="currentColor"/>
+                  <circle cx="11" cy="9" r="1.5" fill="currentColor"/>
+                  <circle cx="14" cy="3" r="1.5" fill="currentColor"/>
+                </svg>
+                <span>Route Measurement</span>
               </div>
               <button
                 className="rm-sidebar-collapse-btn"
@@ -1136,8 +1134,6 @@ export function MeasurementWorkspace() {
           </main>
         </div>
       )}
-    </>
-  )}
 
       {/* ─── MODAL OVERLAYS ────────────────────────────────────────── */}
       <HowItWorksModal
