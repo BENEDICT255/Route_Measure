@@ -1875,10 +1875,12 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   background: var(--rm-surface);
   border: 1px solid var(--rm-border);
   border-radius: 20px;
-  width: 92%;
-  max-width: 780px;
-  max-height: 85vh;
+  width: 95%;
+  max-width: 960px;
+  max-height: 88vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
   padding: 32px 36px;
   position: relative;
@@ -1935,13 +1937,18 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .rm-upload-modal-grid .rm-card {
   border: 1px solid var(--rm-border);
   border-radius: 14px;
   background: var(--rm-surface);
-  padding: 24px;
+  padding: 22px;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ─── 4. SCREEN 2: RESULTS WORKSPACE ──────────────────────────── */
@@ -2153,6 +2160,8 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  height: 100%;
+  min-height: 0;
 }
 
 .rm-results-right-col {
@@ -2173,6 +2182,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border: 1px solid var(--rm-border);
   border-radius: 14px;
   box-shadow: var(--rm-card-shadow);
+  flex-shrink: 0;
 }
 
 .rm-summary-title {
@@ -2247,6 +2257,10 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border: 1px solid var(--rm-border);
   border-radius: 14px;
   box-shadow: var(--rm-card-shadow);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .rm-data-tabs {
@@ -2254,6 +2268,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border-bottom: 1px solid var(--rm-border);
   padding: 0 14px;
   background: var(--rm-surface);
+  flex-shrink: 0;
 }
 
 .rm-data-tab {
@@ -2276,8 +2291,10 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 }
 
 .rm-data-table-container {
-  max-height: 260px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .rm-data-table {
