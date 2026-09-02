@@ -1,13 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GeospatialHeroVisual } from '../components/GeospatialHeroVisual';
-import { HowItWorksModal, AccuracyModal, PrivacyModal } from '../components/LandingModals';
+import {
+  HowItWorksModal,
+  FeaturesModal,
+  ModesModal,
+  ReportsModal,
+  AboutModal,
+} from '../components/LandingModals';
 
 type ThemeMode = 'light' | 'dark' | 'system';
+type ModalType = 'features' | 'modes' | 'how-it-works' | 'reports' | 'about' | null;
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const [activeModal, setActiveModal] = useState<'how-it-works' | 'accuracy' | 'privacy' | null>(null);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('routemeasure_theme_mode') as ThemeMode | null;
@@ -73,13 +80,13 @@ export function LandingPage() {
             <span className="editorial-brand-name">RouteMeasure</span>
           </div>
 
-          {/* Desktop Navigation Links (Open informative modals) */}
+          {/* Desktop Navigation Links (Each opens its structured modal) */}
           <nav className="editorial-nav-links">
-            <button type="button" onClick={() => setActiveModal('accuracy')}>Features</button>
-            <button type="button" onClick={() => setActiveModal('how-it-works')}>Modes</button>
+            <button type="button" onClick={() => setActiveModal('features')}>Features</button>
+            <button type="button" onClick={() => setActiveModal('modes')}>Modes</button>
             <button type="button" onClick={() => setActiveModal('how-it-works')}>How It Works</button>
-            <button type="button" onClick={() => setActiveModal('accuracy')}>Reports</button>
-            <button type="button" onClick={() => setActiveModal('privacy')}>About</button>
+            <button type="button" onClick={() => setActiveModal('reports')}>Reports</button>
+            <button type="button" onClick={() => setActiveModal('about')}>About</button>
           </nav>
 
           {/* Right Header Actions: Theme Switcher & Get Started CTA */}
@@ -155,9 +162,11 @@ export function LandingPage() {
         {/* Mobile Dropdown Drawer */}
         {mobileMenuOpen && (
           <div className="editorial-mobile-drawer">
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('features'); }}>Features</button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('modes'); }}>Modes</button>
             <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('how-it-works'); }}>How It Works</button>
-            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('accuracy'); }}>Accuracy &amp; Methodology</button>
-            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('privacy'); }}>Security &amp; Privacy</button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('reports'); }}>Reports</button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('about'); }}>About</button>
             <div className="editorial-mobile-drawer-footer">
               <button type="button" className="editorial-btn-primary" onClick={goToMeasure}>
                 Continue to site →
@@ -232,7 +241,7 @@ export function LandingPage() {
       <footer className="editorial-single-page-footer">
         <div className="editorial-strip-container">
           {/* Capability 1 */}
-          <div className="editorial-strip-item">
+          <div className="editorial-strip-item" onClick={() => setActiveModal('features')} style={{ cursor: 'pointer' }}>
             <div className="strip-icon-box">
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
                 <circle cx="10" cy="10" r="7" />
@@ -250,7 +259,7 @@ export function LandingPage() {
           <div className="editorial-strip-divider" />
 
           {/* Capability 2 */}
-          <div className="editorial-strip-item">
+          <div className="editorial-strip-item" onClick={() => setActiveModal('about')} style={{ cursor: 'pointer' }}>
             <div className="strip-icon-box">
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
                 <path d="M10 2L3 5.5V10C3 14.5 6 17.5 10 18.5C14 17.5 17 14.5 17 10V5.5L10 2Z" />
@@ -267,7 +276,7 @@ export function LandingPage() {
           <div className="editorial-strip-divider" />
 
           {/* Capability 3 */}
-          <div className="editorial-strip-item">
+          <div className="editorial-strip-item" onClick={() => setActiveModal('reports')} style={{ cursor: 'pointer' }}>
             <div className="strip-icon-box">
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
                 <path d="M4 3H13L17 7V17H4V3Z" />
@@ -285,7 +294,7 @@ export function LandingPage() {
           <div className="editorial-strip-divider" />
 
           {/* Capability 4 */}
-          <div className="editorial-strip-item">
+          <div className="editorial-strip-item" onClick={() => setActiveModal('reports')} style={{ cursor: 'pointer' }}>
             <div className="strip-icon-box">
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
                 <circle cx="10" cy="10" r="7.5" />
@@ -300,19 +309,29 @@ export function LandingPage() {
         </div>
       </footer>
 
-      {/* ─── MODAL OVERLAYS (Triggered by 'See how it works' and Nav) ── */}
+      {/* ─── MODAL OVERLAYS ─────────────────────────────────────────── */}
       <HowItWorksModal
         isOpen={activeModal === 'how-it-works'}
         onClose={() => setActiveModal(null)}
         onStartMeasuring={goToMeasure}
       />
-      <AccuracyModal
-        isOpen={activeModal === 'accuracy'}
+      <FeaturesModal
+        isOpen={activeModal === 'features'}
         onClose={() => setActiveModal(null)}
         onStartMeasuring={goToMeasure}
       />
-      <PrivacyModal
-        isOpen={activeModal === 'privacy'}
+      <ModesModal
+        isOpen={activeModal === 'modes'}
+        onClose={() => setActiveModal(null)}
+        onStartMeasuring={goToMeasure}
+      />
+      <ReportsModal
+        isOpen={activeModal === 'reports'}
+        onClose={() => setActiveModal(null)}
+        onStartMeasuring={goToMeasure}
+      />
+      <AboutModal
+        isOpen={activeModal === 'about'}
         onClose={() => setActiveModal(null)}
         onStartMeasuring={goToMeasure}
       />

@@ -46,41 +46,11 @@ export function MeasurementWorkspace() {
     () => localStorage.getItem('gmaps_api_key') || (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || ''
   );
 
-  type ThemeMode = 'light' | 'dark' | 'system';
-
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem('routemeasure_theme_mode') as ThemeMode | null;
-    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-    const legacy = localStorage.getItem('routemeasure_theme');
-    if (legacy === 'dark') return 'dark';
-    if (legacy === 'light') return 'light';
-    return 'light';
-  });
-
+  // Ensure persisted theme is applied
   useEffect(() => {
-    const applyTheme = () => {
-      let resolvedTheme: 'light' | 'dark' = 'light';
-      if (themeMode === 'system') {
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        resolvedTheme = systemPrefersDark ? 'dark' : 'light';
-      } else {
-        resolvedTheme = themeMode;
-      }
-
-      document.documentElement.setAttribute('data-theme', resolvedTheme);
-      localStorage.setItem('routemeasure_theme_mode', themeMode);
-      localStorage.setItem('routemeasure_theme', resolvedTheme);
-    };
-
-    applyTheme();
-
-    if (themeMode === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const listener = () => applyTheme();
-      mediaQuery.addEventListener('change', listener);
-      return () => mediaQuery.removeEventListener('change', listener);
-    }
-  }, [themeMode]);
+    const saved = localStorage.getItem('routemeasure_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+  }, []);
 
   const handleApiKeyChange = (newKey: string) => {
     setApiKey(newKey);
@@ -496,48 +466,6 @@ export function MeasurementWorkspace() {
           </div>
 
           <div className="rm-header-actions">
-            {/* Theme Selector (Light / Dark / Auto) */}
-            <div className="editorial-theme-selector" role="radiogroup" aria-label="Theme selector">
-              <button
-                type="button"
-                className={`theme-btn ${themeMode === 'light' ? 'active' : ''}`}
-                onClick={() => setThemeMode('light')}
-                title="Light Cream Theme"
-                aria-label="Light mode"
-              >
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                  <circle cx="8" cy="8" r="3.5" />
-                  <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                <span className="theme-label">Light</span>
-              </button>
-              <button
-                type="button"
-                className={`theme-btn ${themeMode === 'dark' ? 'active' : ''}`}
-                onClick={() => setThemeMode('dark')}
-                title="Dark Theme"
-                aria-label="Dark mode"
-              >
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M6 2a6 6 0 0 0 8 8 7 7 0 1 1-8-8z" />
-                </svg>
-                <span className="theme-label">Dark</span>
-              </button>
-              <button
-                type="button"
-                className={`theme-btn ${themeMode === 'system' ? 'active' : ''}`}
-                onClick={() => setThemeMode('system')}
-                title="Follow Operating System Theme"
-                aria-label="System mode"
-              >
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="2" y="3" width="12" height="9" rx="1.5" />
-                  <path d="M6 14h4M8 12v2" strokeLinecap="round" />
-                </svg>
-                <span className="theme-label">Auto</span>
-              </button>
-            </div>
-
             <button className="rm-btn-clear" onClick={handleClear}>
               Clear
             </button>
