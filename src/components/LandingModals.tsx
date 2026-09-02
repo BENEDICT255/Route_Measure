@@ -60,10 +60,10 @@ export function HowItWorksModal({ isOpen, onClose, onStartMeasuring }: ModalProp
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
           </button>
         </div>
@@ -106,18 +106,18 @@ export function AccuracyModal({ isOpen, onClose, onStartMeasuring }: ModalProps)
             <p>
               Each consecutive segment is calculated independently using WGS84 ellipsoidal geodesics with Charles Karney's inverse algorithm via GeographicLib.
             </p>
-            <p style={{ marginTop: '8px', fontSize: '13px', opacity: 0.8 }}>
+            <p style={{ marginTop: '8px', fontSize: '13px', opacity: 0.85 }}>
               Google Maps is used strictly for satellite visualization and does not determine the canonical distance.
             </p>
           </div>
 
-          <h4 style={{ color: 'white', marginTop: '20px', marginBottom: '8px', fontSize: '15px' }}>
+          <h4 className="modal-section-title">
             Real-World Considerations
           </h4>
           <p>
             The calculated distance represents the precise geographical route defined by the supplied coordinate points. Real-world physical accuracy depends on the accuracy of those coordinates and does not automatically model:
           </p>
-          <ul style={{ paddingLeft: '20px', color: '#94a3b8', fontSize: '14px', lineHeight: '1.7' }}>
+          <ul className="modal-list">
             <li>Conductor sag or vertical catenary geometry</li>
             <li>Elevation profile or terrain topography</li>
             <li>Attachment point positions or structural clearances</li>
@@ -126,10 +126,10 @@ export function AccuracyModal({ isOpen, onClose, onStartMeasuring }: ModalProps)
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
           </button>
         </div>
@@ -174,19 +174,19 @@ export function PrivacyModal({ isOpen, onClose, onStartMeasuring }: ModalProps) 
             </p>
           </div>
 
-          <h4 style={{ color: 'white', marginTop: '20px', marginBottom: '8px', fontSize: '15px' }}>
+          <h4 className="modal-section-title">
             Map Visualization Notice
           </h4>
-          <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.6' }}>
+          <p style={{ fontSize: '14px', lineHeight: '1.6' }}>
             When satellite visualization is displayed, the Google Maps JavaScript API communicates directly with Google's servers to fetch map imagery tiles and map services. Refer to Google's privacy policy for details on their map tile request data handling.
           </p>
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
           </button>
         </div>
@@ -247,10 +247,10 @@ export function FeaturesModal({ isOpen, onClose, onStartMeasuring }: ModalProps)
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
           </button>
         </div>
@@ -286,34 +286,34 @@ export function UseCasesModal({ isOpen, onClose, onStartMeasuring }: ModalProps)
         <div className="modal-steps-grid">
           <div className="modal-step-card">
             <div className="modal-step-num">01</div>
-            <h3>Power Transmission & Distribution</h3>
+            <h3>Power Transmission &amp; Distribution</h3>
             <p>Calculate exact line lengths for Low Voltage (LV) and Medium Voltage (MV) overhead &amp; underground feeder lines.</p>
           </div>
 
           <div className="modal-step-card">
             <div className="modal-step-num">02</div>
-            <h3>Telecommunications & Fiber</h3>
+            <h3>Telecommunications &amp; Fiber</h3>
             <p>Measure fiber optic backbone routes, mast-to-tower point-to-point links, and right-of-way spans.</p>
           </div>
 
           <div className="modal-step-card">
             <div className="modal-step-num">03</div>
-            <h3>Logistics & Warehouse Hubs</h3>
+            <h3>Logistics &amp; Warehouse Hubs</h3>
             <p>Determine exact geodesic distance from central distribution warehouses to regional distribution sites.</p>
           </div>
 
           <div className="modal-step-card">
             <div className="modal-step-num">04</div>
-            <h3>Surveying & Environmental Assessment</h3>
+            <h3>Surveying &amp; Environmental Assessment</h3>
             <p>Audit site coordinates, verify boundary distances, and export GIS-ready KML geometries.</p>
           </div>
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
           </button>
         </div>
@@ -348,26 +348,26 @@ export function PricingModal({ isOpen, onClose, onStartMeasuring }: ModalProps) 
         </div>
 
         <div className="modal-steps-grid">
-          <div className="modal-step-card" style={{ borderColor: 'rgba(59, 130, 246, 0.4)', background: 'rgba(30, 58, 110, 0.25)' }}>
-            <div className="modal-step-num" style={{ color: '#60a5fa' }}>COMMUNITY / PRO</div>
+          <div className="modal-step-card">
+            <div className="modal-step-num">COMMUNITY / PRO</div>
             <h3>Free &amp; Client-Side</h3>
             <p style={{ marginBottom: '8px' }}>Full access to WGS84 geodesic calculations, Excel parsing, satellite visualization, and multi-sheet exports.</p>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '12px' }}>$0 / forever</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--editorial-accent)', marginTop: '12px' }}>$0 / forever</div>
           </div>
 
           <div className="modal-step-card">
             <div className="modal-step-num">ENTERPRISE</div>
             <h3>Custom Deployments</h3>
             <p>Self-hosted offline intranet deployments, custom GIS integrations, and corporate single sign-on.</p>
-            <div style={{ fontSize: '14px', color: '#94a3b8', marginTop: '12px' }}>Contact Engineering Team</div>
+            <div style={{ fontSize: '14px', color: 'var(--rm-text-muted)', marginTop: '12px' }}>Contact Engineering Team</div>
           </div>
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
           </button>
         </div>
@@ -397,93 +397,26 @@ export function FaqModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
 
         <div className="modal-header">
           <div className="modal-badge">Frequently Asked Questions</div>
-          <h2 className="modal-title">Questions &amp; Answers</h2>
+          <h2 className="modal-title">Help &amp; Documentation</h2>
         </div>
 
         <div className="modal-body-text">
-          <div className="modal-info-box" style={{ marginBottom: '12px' }}>
-            <h4 style={{ color: '#60a5fa', marginBottom: '4px' }}>What file formats are supported?</h4>
-            <p>Standard Microsoft Excel workbooks (.xlsx, .xls) and CSV files containing latitude and longitude columns.</p>
-          </div>
+          <h4 className="modal-section-title">What coordinate formats are accepted?</h4>
+          <p>Standard decimal degrees (e.g. -6.792311, 39.208153). Degrees-minutes-seconds (DMS) can be pre-converted or auto-detected in standard columns.</p>
 
-          <div className="modal-info-box" style={{ marginBottom: '12px' }}>
-            <h4 style={{ color: '#60a5fa', marginBottom: '4px' }}>How is this different from Google Maps measuring tool?</h4>
-            <p>RouteMeasure computes ellipsoidal geodesics using GeographicLib (Karney WGS84 algorithm) directly between every sequential coordinate point, supporting batch files with hundreds of points, multi-sheet splitting, and automated report exports.</p>
-          </div>
+          <h4 className="modal-section-title" style={{ marginTop: '16px' }}>How large can the spreadsheet be?</h4>
+          <p>Up to 10,000 coordinates are processed in milliseconds directly on your device without server limits.</p>
 
-          <div className="modal-info-box">
-            <h4 style={{ color: '#60a5fa', marginBottom: '4px' }}>Is my coordinate data private?</h4>
-            <p>Yes. All workbook reading, coordinate parsing, geodesic math, and export generation happen directly inside your browser.</p>
-          </div>
+          <h4 className="modal-section-title" style={{ marginTop: '16px' }}>Can I export directly to AutoCAD or ArcGIS?</h4>
+          <p>Yes. The exported KML files can be opened in Google Earth Pro or imported directly into Civil3D, QGIS, and ArcGIS Pro.</p>
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
+          <button className="editorial-btn-secondary" onClick={onClose}>
             Close
           </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
+          <button className="editorial-btn-primary" onClick={onStartMeasuring}>
             Start Measuring →
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Interactive Demo Modal Overlay */
-export function DemoModal({ isOpen, onClose, onStartMeasuring }: ModalProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <button className="modal-close" onClick={onClose} aria-label="Close modal">
-          ✕
-        </button>
-
-        <div className="modal-header">
-          <div className="modal-badge">Interactive Preview</div>
-          <h2 className="modal-title">RouteMeasure Workflow</h2>
-          <p className="modal-subtitle">Experience how seamless transmission line and distance measurement is.</p>
-        </div>
-
-        <div className="modal-steps-grid">
-          <div className="modal-step-card">
-            <div className="modal-step-num">Step 1</div>
-            <h3>Drop Your Excel Sheet</h3>
-            <p>Upload files like <code>transmission_line.xlsx</code> or <code>site_locations.xlsx</code>.</p>
-          </div>
-          <div className="modal-step-card">
-            <div className="modal-step-num">Step 2</div>
-            <h3>Auto-Detect Columns</h3>
-            <p>Coordinates, tower IDs, and voltage levels (LV/MV) are parsed instantly.</p>
-          </div>
-          <div className="modal-step-card">
-            <div className="modal-step-num">Step 3</div>
-            <h3>Instant Calculation</h3>
-            <p>Full route length computed in meters and kilometers with sub-millimeter precision.</p>
-          </div>
-          <div className="modal-step-card">
-            <div className="modal-step-num">Step 4</div>
-            <h3>Satellite &amp; Export</h3>
-            <p>Visualize polylines on Google Maps satellite imagery and download Excel/KML reports.</p>
-          </div>
-        </div>
-
-        <div className="modal-footer">
-          <button className="btn btn-secondary" style={{ color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.2)' }} onClick={onClose}>
-            Close
-          </button>
-          <button className="btn btn-accent" onClick={onStartMeasuring}>
-            Start Measuring Now →
           </button>
         </div>
       </div>

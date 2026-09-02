@@ -46,20 +46,41 @@ export function MeasurementWorkspace() {
     () => localStorage.getItem('gmaps_api_key') || (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || ''
   );
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('routemeasure_theme');
-    if (saved) return saved === 'dark';
-    return false;
+  type ThemeMode = 'light' | 'dark' | 'system';
+
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('routemeasure_theme_mode') as ThemeMode | null;
+    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+    const legacy = localStorage.getItem('routemeasure_theme');
+    if (legacy === 'dark') return 'dark';
+    if (legacy === 'light') return 'light';
+    return 'light';
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-    localStorage.setItem('routemeasure_theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
+    const applyTheme = () => {
+      let resolvedTheme: 'light' | 'dark' = 'light';
+      if (themeMode === 'system') {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        resolvedTheme = systemPrefersDark ? 'dark' : 'light';
+      } else {
+        resolvedTheme = themeMode;
+      }
 
-  const toggleTheme = () => {
-    setIsDarkMode((prev) => !prev);
-  };
+      document.documentElement.setAttribute('data-theme', resolvedTheme);
+      localStorage.setItem('routemeasure_theme_mode', themeMode);
+      localStorage.setItem('routemeasure_theme', resolvedTheme);
+    };
+
+    applyTheme();
+
+    if (themeMode === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => applyTheme();
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+  }, [themeMode]);
 
   const handleApiKeyChange = (newKey: string) => {
     setApiKey(newKey);
@@ -456,37 +477,74 @@ export function MeasurementWorkspace() {
     <div className="rm-workspace-root">
       {/* ─── TOP APPLICATION HEADER ───────────────────────────────── */}
       <header className="rm-top-header">
-        <a href="/" className="rm-logo" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
-          <svg className="rm-logo-icon" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="#2563eb" fillOpacity="0.2"/>
-            <path d="M8 24L12 8L16 18L20 12L24 24" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12" cy="8" r="2.2" fill="#60a5fa"/>
-            <circle cx="16" cy="18" r="2.2" fill="#60a5fa"/>
-            <circle cx="20" cy="12" r="2.2" fill="#60a5fa"/>
-          </svg>
-          <span className="rm-logo-text">RouteMeasure</span>
-        </a>
+        <div className="rm-top-header-inner">
+          <div className="editorial-brand" onClick={() => navigate('/')}>
+            <div className="editorial-logo-icon">
+              <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+                <rect width="32" height="32" rx="8" fill="#2563eb" fillOpacity="0.16" />
+                <path d="M8 24L12 8L16 18L20 12L24 24" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="8" r="2.2" fill="#2563eb" />
+                <circle cx="16" cy="18" r="2.2" fill="#2563eb" />
+                <circle cx="20" cy="12" r="2.2" fill="#2563eb" />
+              </svg>
+            </div>
+            <span className="editorial-brand-name">RouteMeasure</span>
+          </div>
 
-        <div className="rm-header-center-text">
-          Upload your Excel file and generate accurate route distance
-        </div>
+          <div className="rm-header-center-badge">
+            <span>Precision Geospatial Measurement</span>
+          </div>
 
-        <div className="rm-header-actions">
-          <button
-            type="button"
-            className="rm-theme-toggle"
-            onClick={toggleTheme}
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle theme"
-          >
-            <span>{isDarkMode ? '☀️' : '🌙'}</span>
-          </button>
-          <button className="rm-btn-clear" onClick={handleClear}>
-            Clear
-          </button>
-          <button className="rm-btn-new-upload" onClick={handleClear}>
-            + New Upload
-          </button>
+          <div className="rm-header-actions">
+            {/* Theme Selector (Light / Dark / Auto) */}
+            <div className="editorial-theme-selector" role="radiogroup" aria-label="Theme selector">
+              <button
+                type="button"
+                className={`theme-btn ${themeMode === 'light' ? 'active' : ''}`}
+                onClick={() => setThemeMode('light')}
+                title="Light Cream Theme"
+                aria-label="Light mode"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                  <circle cx="8" cy="8" r="3.5" />
+                  <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span className="theme-label">Light</span>
+              </button>
+              <button
+                type="button"
+                className={`theme-btn ${themeMode === 'dark' ? 'active' : ''}`}
+                onClick={() => setThemeMode('dark')}
+                title="Dark Theme"
+                aria-label="Dark mode"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M6 2a6 6 0 0 0 8 8 7 7 0 1 1-8-8z" />
+                </svg>
+                <span className="theme-label">Dark</span>
+              </button>
+              <button
+                type="button"
+                className={`theme-btn ${themeMode === 'system' ? 'active' : ''}`}
+                onClick={() => setThemeMode('system')}
+                title="Follow Operating System Theme"
+                aria-label="System mode"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="2" y="3" width="12" height="9" rx="1.5" />
+                  <path d="M6 14h4M8 12v2" strokeLinecap="round" />
+                </svg>
+                <span className="theme-label">Auto</span>
+              </button>
+            </div>
+
+            <button className="rm-btn-clear" onClick={handleClear}>
+              Clear
+            </button>
+            <button className="rm-btn-new-upload" onClick={handleClear}>
+              + New Upload
+            </button>
+          </div>
         </div>
       </header>
 

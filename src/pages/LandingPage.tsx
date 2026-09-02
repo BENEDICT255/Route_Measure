@@ -12,11 +12,10 @@ export function LandingPage() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('routemeasure_theme_mode') as ThemeMode | null;
     if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-    // Fallback to legacy theme key if present
     const legacy = localStorage.getItem('routemeasure_theme');
     if (legacy === 'dark') return 'dark';
     if (legacy === 'light') return 'light';
-    return 'light'; // Default clean light mode inspired by editorial reference
+    return 'light'; // Default cream light mode
   });
 
   // Apply theme to document
@@ -46,7 +45,7 @@ export function LandingPage() {
   }, [themeMode]);
 
   const goToMeasure = useCallback(() => {
-    const mainElem = document.querySelector('.editorial-landing-page');
+    const mainElem = document.querySelector('.editorial-single-page');
     if (mainElem) {
       mainElem.classList.add('page-exit');
     }
@@ -55,21 +54,13 @@ export function LandingPage() {
     }, 200);
   }, [navigate]);
 
-  const scrollToSection = (sectionId: string) => {
-    setMobileMenuOpen(false);
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
-    <div className="editorial-landing-page">
+    <div className="editorial-single-page">
       {/* ─── 1. TOP EDITORIAL NAVIGATION ────────────────────────── */}
       <header className="editorial-header">
         <div className="editorial-header-inner">
           {/* Brand / Logo */}
-          <div className="editorial-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <div className="editorial-brand" onClick={() => window.location.reload()}>
             <div className="editorial-logo-icon">
               <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
                 <rect width="32" height="32" rx="8" fill="#2563eb" fillOpacity="0.16" />
@@ -82,24 +73,24 @@ export function LandingPage() {
             <span className="editorial-brand-name">RouteMeasure</span>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Navigation Links (Open informative modals) */}
           <nav className="editorial-nav-links">
-            <button type="button" onClick={() => scrollToSection('features')}>Features</button>
-            <button type="button" onClick={() => scrollToSection('modes')}>Modes</button>
-            <button type="button" onClick={() => scrollToSection('how-it-works')}>How It Works</button>
-            <button type="button" onClick={() => scrollToSection('reports')}>Reports</button>
-            <button type="button" onClick={() => scrollToSection('about')}>About</button>
+            <button type="button" onClick={() => setActiveModal('accuracy')}>Features</button>
+            <button type="button" onClick={() => setActiveModal('how-it-works')}>Modes</button>
+            <button type="button" onClick={() => setActiveModal('how-it-works')}>How It Works</button>
+            <button type="button" onClick={() => setActiveModal('accuracy')}>Reports</button>
+            <button type="button" onClick={() => setActiveModal('privacy')}>About</button>
           </nav>
 
           {/* Right Header Actions: Theme Switcher & Get Started CTA */}
           <div className="editorial-header-actions">
-            {/* Theme Selector (Light / Dark / System) */}
+            {/* Theme Selector (Light / Dark / Auto) */}
             <div className="editorial-theme-selector" role="radiogroup" aria-label="Theme selector">
               <button
                 type="button"
                 className={`theme-btn ${themeMode === 'light' ? 'active' : ''}`}
                 onClick={() => setThemeMode('light')}
-                title="Light Theme"
+                title="Light Cream Theme"
                 aria-label="Light mode"
               >
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
@@ -143,7 +134,7 @@ export function LandingPage() {
               </svg>
             </button>
 
-            {/* Mobile Hamburger Toggle */}
+            {/* Mobile Hamburger */}
             <button
               type="button"
               className="editorial-hamburger-btn"
@@ -161,14 +152,12 @@ export function LandingPage() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile Dropdown Drawer */}
         {mobileMenuOpen && (
           <div className="editorial-mobile-drawer">
-            <button type="button" onClick={() => scrollToSection('features')}>Features</button>
-            <button type="button" onClick={() => scrollToSection('modes')}>Modes</button>
-            <button type="button" onClick={() => scrollToSection('how-it-works')}>How It Works</button>
-            <button type="button" onClick={() => scrollToSection('reports')}>Reports</button>
-            <button type="button" onClick={() => scrollToSection('about')}>About</button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('how-it-works'); }}>How It Works</button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('accuracy'); }}>Accuracy &amp; Methodology</button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setActiveModal('privacy'); }}>Security &amp; Privacy</button>
             <div className="editorial-mobile-drawer-footer">
               <button type="button" className="editorial-btn-primary" onClick={goToMeasure}>
                 Continue to site →
@@ -178,8 +167,8 @@ export function LandingPage() {
         )}
       </header>
 
-      {/* ─── 2. HERO SECTION ────────────────────────────────────── */}
-      <section className="editorial-hero-section">
+      {/* ─── 2. MAIN SINGLE-PAGE HERO COMPOSITION ───────────────── */}
+      <main className="editorial-main-hero">
         <div className="editorial-hero-grid">
           {/* Left Column: Large Editorial Typography & Action Buttons */}
           <div className="editorial-hero-content">
@@ -190,17 +179,17 @@ export function LandingPage() {
             </h1>
 
             <p className="editorial-hero-subtitle">
-              RouteMeasure helps utility engineers, surveyors, GIS teams and infrastructure professionals
-              calculate, visualize, and report precise geospatial measurements — directly from coordinate data.
+              High-precision WGS84 geodesic route calculation and network polyline mapping for power transmission lines,
+              utility infrastructure, and survey engineering — 100% in-browser from your coordinate spreadsheets.
             </p>
 
-            {/* Restrained, Functional CTAs */}
+            {/* Action Buttons */}
             <div className="editorial-hero-actions">
               <button
                 type="button"
                 className="editorial-btn-primary"
                 onClick={goToMeasure}
-                aria-label="Continue to RouteMeasure site"
+                aria-label="Continue to RouteMeasure workspace"
               >
                 Continue to site
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
@@ -211,13 +200,14 @@ export function LandingPage() {
               <button
                 type="button"
                 className="editorial-btn-secondary"
-                onClick={() => scrollToSection('how-it-works')}
-                aria-label="See how RouteMeasure works"
+                onClick={() => setActiveModal('how-it-works')}
+                aria-label="Open how it works modal"
               >
-                See how it works
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 3V13M8 13L13 8M8 13L3 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                  <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="1.5" />
+                  <polygon points="7,6 13,9 7,12" fill="currentColor" />
                 </svg>
+                See how it works
               </button>
             </div>
 
@@ -231,15 +221,15 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Right Column: Isometric Topographic Geospatial Visualization */}
+          {/* Right Column: Attached Isometric Topographic Route Map */}
           <div className="editorial-hero-visual-col">
             <GeospatialHeroVisual theme={themeMode} />
           </div>
         </div>
-      </section>
+      </main>
 
-      {/* ─── 3. HORIZONTAL CAPABILITY STRIP ─────────────────────── */}
-      <section className="editorial-strip-section" id="features">
+      {/* ─── 3. BOTTOM COMPACT CAPABILITY STRIP (INTEGRATED) ────── */}
+      <footer className="editorial-single-page-footer">
         <div className="editorial-strip-container">
           {/* Capability 1 */}
           <div className="editorial-strip-item">
@@ -308,322 +298,9 @@ export function LandingPage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* ─── 4. SECONDARY SECTION: CORE EDITORIAL PILLARS ───────── */}
-      <section className="editorial-pillars-section">
-        <div className="editorial-section-header">
-          <div className="editorial-section-tag">ENGINEERING CAPABILITIES</div>
-          <h2 className="editorial-section-heading">
-            Everything you need to turn coordinates into decisions.
-          </h2>
-          <p className="editorial-section-lead">
-            Purpose-built for power utility routing, surveying pipelines, substation interconnections,
-            and regional infrastructure logistics.
-          </p>
-        </div>
-
-        <div className="editorial-pillars-grid">
-          {/* Pillar 01 */}
-          <div className="editorial-pillar-card">
-            <div className="pillar-num">01</div>
-            <div className="pillar-title">Measure</div>
-            <p className="pillar-desc">
-              Accurately calculate distances between coordinate points using WGS84 ellipsoidal geodesic
-              calculations via the Charles Karney algorithm.
-            </p>
-            <div className="pillar-tag-list">
-              <span>WGS84 Ellipsoid</span>
-              <span>GeodesicLib</span>
-              <span>3D Elevation</span>
-            </div>
-          </div>
-
-          {/* Pillar 02 */}
-          <div className="editorial-pillar-card">
-            <div className="pillar-num">02</div>
-            <div className="pillar-title">Visualize</div>
-            <p className="pillar-desc">
-              Transform coordinate tables into high-definition route polylines and satellite overlays with
-              interactive pole, tower, and site markers.
-            </p>
-            <div className="pillar-tag-list">
-              <span>Satellite Mapping</span>
-              <span>Interactive Nodes</span>
-              <span>Vector Polylines</span>
-            </div>
-          </div>
-
-          {/* Pillar 03 */}
-          <div className="editorial-pillar-card">
-            <div className="pillar-num">03</div>
-            <div className="pillar-title">Analyze</div>
-            <p className="pillar-desc">
-              Understand route segments, cumulative chainage, voltage classifications (LV vs. MV),
-              and proximity rankings with automated statistics.
-            </p>
-            <div className="pillar-tag-list">
-              <span>LV/MV Separation</span>
-              <span>Proximity Sorting</span>
-              <span>Point Matrix</span>
-            </div>
-          </div>
-
-          {/* Pillar 04 */}
-          <div className="editorial-pillar-card">
-            <div className="pillar-num">04</div>
-            <div className="pillar-title">Deliver</div>
-            <p className="pillar-desc">
-              Generate formatted multi-sheet Excel calculation audits and spatial KML files for immediate
-              use in AutoCAD, ArcGIS, and Google Earth Pro.
-            </p>
-            <div className="pillar-tag-list">
-              <span>Excel .xlsx</span>
-              <span>Google Earth .kml</span>
-              <span>Client Audits</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 5. DUAL MEASUREMENT MODES SECTION ───────────────────── */}
-      <section className="editorial-modes-section" id="modes">
-        <div className="editorial-section-header">
-          <div className="editorial-section-tag">CALCULATION WORKFLOWS</div>
-          <h2 className="editorial-section-heading">Two specialized measurement engines.</h2>
-          <p className="editorial-section-lead">
-            Select the exact workflow designed for your infrastructure project.
-          </p>
-        </div>
-
-        <div className="editorial-modes-grid">
-          {/* Mode 1 Card */}
-          <div className="editorial-mode-card">
-            <div className="mode-card-badge mode-badge-blue">MODE 01</div>
-            <h3 className="mode-card-title">LV &amp; MV Network Polyline</h3>
-            <p className="mode-card-desc">
-              Designed for transmission lines, distribution grids, and pipeline corridors. Measures sequential
-              poles/towers along ordered coordinate tracks.
-            </p>
-            <ul className="mode-feature-list">
-              <li>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Ordered coordinate path tracing with span-by-span chainage
-              </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Automatic Low Voltage (LV) and Medium Voltage (MV) classification
-              </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Interactive segment inspection &amp; satellite elevation profiles
-              </li>
-            </ul>
-            <div className="mode-card-footer">
-              <button type="button" className="editorial-link-btn" onClick={goToMeasure}>
-                Open Polyline Mode →
-              </button>
-            </div>
-          </div>
-
-          {/* Mode 2 Card */}
-          <div className="editorial-mode-card">
-            <div className="mode-card-badge mode-badge-emerald">MODE 02</div>
-            <h3 className="mode-card-title">Point-to-Point Distance Matrix</h3>
-            <p className="mode-card-desc">
-              Designed for regional logistics, hub-and-spoke networks, and warehouse-to-site distance auditing.
-              Calculates direct geodesic lines from an origin.
-            </p>
-            <ul className="mode-feature-list">
-              <li>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Origin-to-destination direct geodesic distance calculations
-              </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Interactive destination assignment spreadsheet (Assigned / Excluded)
-              </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Automated nearest-to-farthest proximity ranking &amp; summaries
-              </li>
-            </ul>
-            <div className="mode-card-footer">
-              <button type="button" className="editorial-link-btn emerald" onClick={goToMeasure}>
-                Open Distance Mode →
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 6. HOW IT WORKS SECTION ────────────────────────────── */}
-      <section className="editorial-workflow-section" id="how-it-works">
-        <div className="editorial-section-header">
-          <div className="editorial-section-tag">STREAMLINED PROCESS</div>
-          <h2 className="editorial-section-heading">From raw workbook to measured route in seconds.</h2>
-          <p className="editorial-section-lead">
-            No complex GIS setup or desktop license required.
-          </p>
-        </div>
-
-        <div className="editorial-steps-grid">
-          <div className="editorial-step-card">
-            <div className="step-badge">STEP 1</div>
-            <div className="step-title">Upload Excel Workbook</div>
-            <p className="step-desc">
-              Drag and drop any spreadsheet containing latitude, longitude, and optional pole or site identifiers.
-            </p>
-          </div>
-
-          <div className="editorial-step-card">
-            <div className="step-badge">STEP 2</div>
-            <div className="step-title">Automated Detection</div>
-            <p className="step-desc">
-              RouteMeasure automatically identifies headers, validates coordinate formats, and detects sheets.
-            </p>
-          </div>
-
-          <div className="editorial-step-card">
-            <div className="step-badge">STEP 3</div>
-            <div className="step-title">Geodesic Math Engine</div>
-            <p className="step-desc">
-              Calculates exact surface distances over the WGS84 rotational ellipsoid using Karney's algorithms.
-            </p>
-          </div>
-
-          <div className="editorial-step-card">
-            <div className="step-badge">STEP 4</div>
-            <div className="step-title">Inspect &amp; Export</div>
-            <p className="step-desc">
-              Review interactive maps and download audit-ready Excel reports and Google Earth KML files.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 7. REPORTS & GIS EXPORT SECTION ─────────────────────── */}
-      <section className="editorial-reports-section" id="reports">
-        <div className="editorial-reports-card">
-          <div className="reports-card-content">
-            <div className="editorial-section-tag">OUTPUTS &amp; INTEROPERABILITY</div>
-            <h2 className="editorial-reports-heading">
-              Export professional deliverables in formats your team already uses.
-            </h2>
-            <p className="editorial-reports-desc">
-              Every calculation generates structured, reproducible outputs formatted according to international
-              engineering standards.
-            </p>
-            <div className="reports-actions">
-              <button type="button" className="editorial-btn-primary" onClick={goToMeasure}>
-                Continue to site →
-              </button>
-            </div>
-          </div>
-
-          <div className="reports-card-specs">
-            <div className="spec-box">
-              <div className="spec-label">EXCEL SUMMARY &amp; AUDIT</div>
-              <div className="spec-val">.xlsx with multi-tab breakdown, chainage, and segment statistics</div>
-            </div>
-            <div className="spec-box">
-              <div className="spec-label">GIS / GOOGLE EARTH</div>
-              <div className="spec-val">.kml spatial layers with styled path coordinates and pole pins</div>
-            </div>
-            <div className="spec-box">
-              <div className="spec-label">SECURITY &amp; AUDITABILITY</div>
-              <div className="spec-val">100% in-browser processing with zero telemetry or remote storage</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 8. ABOUT & ACCURACY TRUST SECTION ──────────────────── */}
-      <section className="editorial-about-section" id="about">
-        <div className="editorial-about-grid">
-          <div>
-            <div className="editorial-section-tag">MATHEMATICAL RIGOR</div>
-            <h2 className="editorial-about-heading">
-              Built on the gold standard of geodesic algorithms.
-            </h2>
-          </div>
-          <div>
-            <p className="editorial-about-body">
-              Unlike spherical approximations (Haversine) which introduce errors up to 0.5% over long transmission
-              spans, RouteMeasure implements Charles Karney's algorithms on the WGS84 rotational ellipsoid.
-              This guarantees millimeter accuracy for power lines, subsea cables, and regional infrastructure.
-            </p>
-            <div className="about-metrics-row">
-              <div className="about-metric">
-                <div className="metric-number">WGS84</div>
-                <div className="metric-label">Ellipsoid Model</div>
-              </div>
-              <div className="about-metric">
-                <div className="metric-number">0.5 nm</div>
-                <div className="metric-label">Algorithm Tolerance</div>
-              </div>
-              <div className="about-metric">
-                <div className="metric-number">0 sec</div>
-                <div className="metric-label">Server Latency</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 9. EDITORIAL FOOTER ─────────────────────────────────── */}
-      <footer className="editorial-footer">
-        <div className="editorial-footer-inner">
-          <div className="footer-brand-col">
-            <div className="editorial-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="editorial-logo-icon">
-                <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-                  <rect width="32" height="32" rx="8" fill="#2563eb" fillOpacity="0.16" />
-                  <path d="M8 24L12 8L16 18L20 12L24 24" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="12" cy="8" r="2.2" fill="#2563eb" />
-                  <circle cx="16" cy="18" r="2.2" fill="#2563eb" />
-                  <circle cx="20" cy="12" r="2.2" fill="#2563eb" />
-                </svg>
-              </div>
-              <span className="editorial-brand-name">RouteMeasure</span>
-            </div>
-            <p className="footer-tagline">
-              Precision geospatial measurement for infrastructure professionals.
-            </p>
-          </div>
-
-          <nav className="footer-nav-col">
-            <button type="button" onClick={() => scrollToSection('features')}>Features</button>
-            <button type="button" onClick={() => scrollToSection('modes')}>Modes</button>
-            <button type="button" onClick={() => scrollToSection('how-it-works')}>How It Works</button>
-            <button type="button" onClick={() => scrollToSection('reports')}>Reports</button>
-            <button type="button" onClick={() => scrollToSection('about')}>About</button>
-          </nav>
-        </div>
-
-        <div className="editorial-footer-bottom">
-          <div className="footer-copyright">
-            © {new Date().getFullYear()} RouteMeasure. All calculations performed client-side.
-          </div>
-          <div className="footer-privacy-note">
-            WGS84 Geodesic Engine via GeographicLib
-          </div>
-        </div>
       </footer>
 
-      {/* Modals */}
+      {/* ─── MODAL OVERLAYS (Triggered by 'See how it works' and Nav) ── */}
       <HowItWorksModal
         isOpen={activeModal === 'how-it-works'}
         onClose={() => setActiveModal(null)}
