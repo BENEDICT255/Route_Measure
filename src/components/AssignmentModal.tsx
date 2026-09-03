@@ -291,52 +291,55 @@ export function AssignmentModal({
   return (
     <div className="rm-assign-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="rm-assign-modal-content">
-        {/* ─── MODAL HEADER ─── */}
-        <div className="rm-assign-modal-header">
-          <div className="rm-assign-modal-header-left">
-            <h2 className="rm-assign-modal-title">Assign Starting Points</h2>
-            <p className="rm-assign-modal-subtitle">
-              The uploaded coordinates are destination points. Select destination sites and assign the starting point to use for each site.
-            </p>
+        {/* ─── STICKY HEADER BLOCK (HEADER + SUMMARY BAR PINNED AT TOP) ─── */}
+        <div className="rm-assign-sticky-header-block">
+          {/* ─── MODAL HEADER ─── */}
+          <div className="rm-assign-modal-header">
+            <div className="rm-assign-modal-header-left">
+              <h2 className="rm-assign-modal-title">Assign Starting Points</h2>
+              <p className="rm-assign-modal-subtitle">
+                The uploaded coordinates are destination points. Select destination sites and assign the starting point to use for each site.
+              </p>
+            </div>
+            <button className="rm-assign-modal-close" onClick={onClose} title="Done / Close">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
-          <button className="rm-assign-modal-close" onClick={onClose} title="Done / Close">
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-              <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
 
-        {/* ─── SUMMARY BAR ─── */}
-        <div className="rm-assign-summary-bar">
-          <div className="rm-assign-summary-stat">
-            <span className="rm-stat-label">Destination Sites:</span>
-            <span className="rm-stat-val">{summary.total}</span>
-          </div>
-          <div className="rm-assign-summary-divider" />
-          <div className="rm-assign-summary-stat">
-            <span className="rm-stat-label">Starting Points:</span>
-            <span className="rm-stat-val">{startingPoints.length}</span>
-          </div>
-          <div className="rm-assign-summary-divider" />
-          <div className="rm-assign-summary-stat">
-            <span className="rm-stat-label">Assigned:</span>
-            <span className="rm-stat-val rm-stat-green">{summary.assigned}</span>
-          </div>
-          <div className="rm-assign-summary-divider" />
-          <div className="rm-assign-summary-stat">
-            <span className="rm-stat-label">Unassigned:</span>
-            <span className={`rm-stat-val ${summary.unassigned > 0 ? 'rm-stat-amber' : ''}`}>
-              {summary.unassigned}
-            </span>
-          </div>
-          <div className="rm-assign-summary-divider" />
-          <div className="rm-assign-summary-stat">
-            <span className="rm-stat-label">Excluded:</span>
-            <span className="rm-stat-val rm-stat-muted">{summary.excluded}</span>
-          </div>
-          <div className="rm-assign-summary-spacer" />
-          <div className="rm-assign-helper-badge">
-            💡 Select multiple sites to apply one starting point in bulk
+          {/* ─── SUMMARY BAR ─── */}
+          <div className="rm-assign-summary-bar">
+            <div className="rm-assign-summary-stat">
+              <span className="rm-stat-label">Destination Sites:</span>
+              <span className="rm-stat-val">{summary.total}</span>
+            </div>
+            <div className="rm-assign-summary-divider" />
+            <div className="rm-assign-summary-stat">
+              <span className="rm-stat-label">Starting Points:</span>
+              <span className="rm-stat-val">{startingPoints.length}</span>
+            </div>
+            <div className="rm-assign-summary-divider" />
+            <div className="rm-assign-summary-stat">
+              <span className="rm-stat-label">Assigned:</span>
+              <span className="rm-stat-val rm-stat-green">{summary.assigned}</span>
+            </div>
+            <div className="rm-assign-summary-divider" />
+            <div className="rm-assign-summary-stat">
+              <span className="rm-stat-label">Unassigned:</span>
+              <span className={`rm-stat-val ${summary.unassigned > 0 ? 'rm-stat-amber' : ''}`}>
+                {summary.unassigned}
+              </span>
+            </div>
+            <div className="rm-assign-summary-divider" />
+            <div className="rm-assign-summary-stat">
+              <span className="rm-stat-label">Excluded:</span>
+              <span className="rm-stat-val rm-stat-muted">{summary.excluded}</span>
+            </div>
+            <div className="rm-assign-summary-spacer" />
+            <div className="rm-assign-helper-badge">
+              💡 Select multiple sites to apply one starting point in bulk
+            </div>
           </div>
         </div>
 

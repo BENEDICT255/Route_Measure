@@ -2248,17 +2248,23 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   scroll-behavior: smooth;
 }
 
-.rm-assign-modal-header {
+/* Sticky top block containing modal header + summary bar */
+.rm-assign-sticky-header-block {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 50;
+  background: var(--rm-surface, #ffffff);
+  border-bottom: 1px solid var(--rm-border, #e2e8f0);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.rm-assign-modal-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   padding: 22px 28px 16px;
   border-bottom: 1px solid var(--rm-border, #e2e8f0);
-  background: var(--rm-surface, #ffffff);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: transparent;
 }
 
 .rm-assign-modal-header-left {
@@ -2846,9 +2852,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 /* Spreadsheet Table */
 .rm-assign-table-wrap {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: visible;
-  min-height: 200px;
+  overflow: visible;
 }
 
 .rm-assign-table {
@@ -2861,12 +2865,9 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   background: var(--rm-surface-subtle, #f8fafc);
   color: var(--rm-text-secondary, #64748b);
   font-weight: 600;
-  padding: 9px 12px;
+  padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid var(--rm-border, #e2e8f0);
-  position: sticky;
-  top: 71px;
-  z-index: 20;
+  border-bottom: 2px solid var(--rm-border, #e2e8f0);
 }
 
 .rm-assign-table tbody td {
@@ -2990,16 +2991,13 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 
 /* Modal Footer */
 .rm-assign-modal-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 28px;
+  padding: 18px 28px;
   background: var(--rm-surface, #ffffff);
   border-top: 1px solid var(--rm-border, #e2e8f0);
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.06);
+  margin-top: auto;
 }
 
 .rm-footer-status-success {
@@ -6393,5 +6391,10 @@ html, body {
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
   border-color: #3b82f6;
+}
+
+[data-theme="dark"] .rm-assign-sticky-header-block {
+  background: #0e172e;
+  border-bottom-color: #1e2c4d;
 }
 
