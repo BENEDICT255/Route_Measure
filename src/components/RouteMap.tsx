@@ -151,6 +151,19 @@ export function RouteMap({
         if (onPointSelect) {
           adapter.onPointClick(onPointSelect);
         }
+        // Automatically fit route immediately upon loading!
+        setTimeout(() => {
+          if (!isMounted || !adapterRef.current) return;
+          if (visibleRoutes.length === 1) {
+            adapterRef.current.fitRoute(visibleRoutes[0]);
+          } else if (visibleRoutes.length > 1) {
+            const renderData = visibleRoutes.map((r) => ({
+              route: r,
+              options: { strokeColor: ROUTE_COLORS[classifyRoute(r.name)] },
+            }));
+            adapterRef.current.renderMultipleRoutes(renderData, true);
+          }
+        }, 120);
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -199,8 +212,9 @@ export function RouteMap({
         haloColor: '#FFFFFF',
         opacity: 0.95,
       });
+      adapterRef.current.fitRoute(singleRoute);
     }
-  }, [visibleRoutes]);
+  }, [visibleRoutes, mapState]);
 
   // Listen to Fullscreen changes
   useEffect(() => {
@@ -280,8 +294,8 @@ export function RouteMap({
   };
 
   const filterBtnStyle = (active: boolean): React.CSSProperties => ({
-    background: active ? '#2563eb' : 'transparent',
-    color: 'white',
+    background: active ? '#14181f' : 'transparent',
+    color: active ? '#ffffff' : '#4e5868',
     border: 'none',
     padding: '4px 11px',
     borderRadius: 6,
@@ -329,7 +343,7 @@ export function RouteMap({
           >
             Map
           </button>
-          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)', margin: '0 2px' }} />
+          <div style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.12)', margin: '0 2px' }} />
           <button
             style={{ ...filterBtnStyle(false), display: 'flex', alignItems: 'center', gap: 4 }}
             onClick={handleFitRoute}
@@ -341,7 +355,7 @@ export function RouteMap({
             Fit Route
           </button>
           <button
-            style={{ ...filterBtnStyle(false), color: 'rgba(255,255,255,0.7)' }}
+            style={{ ...filterBtnStyle(false), color: '#64748b' }}
             title="Configure Google Maps API Key"
             onClick={() => setShowKeyInput(!showKeyInput)}
           >
@@ -353,7 +367,7 @@ export function RouteMap({
       {/* ─── ROUTE FILTER BUTTONS ON MAP (shown whenever multi-route exists) ─── */}
       {mapState === 'loaded' && availableRoutes.length > 1 && (
         <div className="rm-route-filter-bar">
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, letterSpacing: '0.06em', marginRight: 6 }}>
+          <span style={{ fontSize: 10, color: '#64748b', fontWeight: 700, letterSpacing: '0.06em', marginRight: 6 }}>
             ROUTES
           </span>
 
@@ -372,6 +386,7 @@ export function RouteMap({
                 style={{
                   ...filterBtnStyle(isFilterActive('mv')),
                   background: isFilterActive('mv') ? ROUTE_COLORS.mv : 'transparent',
+                  color: isFilterActive('mv') ? '#ffffff' : '#4e5868',
                 }}
                 onClick={() => onFilterChange('mv')}
               >
@@ -381,7 +396,7 @@ export function RouteMap({
                 style={{
                   ...filterBtnStyle(isFilterActive('lv')),
                   background: isFilterActive('lv') ? ROUTE_COLORS.lv : 'transparent',
-                  color: isFilterActive('lv') ? '#0f172a' : 'white',
+                  color: isFilterActive('lv') ? '#0f172a' : '#4e5868',
                 }}
                 onClick={() => onFilterChange('lv')}
               >
@@ -399,7 +414,7 @@ export function RouteMap({
                   style={{
                     ...filterBtnStyle(active),
                     background: active ? color : 'transparent',
-                    color: active && cls === 'lv' ? '#0f172a' : 'white',
+                    color: active && cls === 'lv' ? '#0f172a' : active ? '#ffffff' : '#4e5868',
                   }}
                   onClick={() => onFilterChange(r.uid)}
                 >
@@ -410,8 +425,8 @@ export function RouteMap({
           )}
 
           {/* INLINE LEGEND */}
-          <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.18)', margin: '0 4px' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: '#cbd5e1' }}>
+          <div style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.12)', margin: '0 4px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: '#64748b' }}>
             {hasMV && (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span
@@ -421,7 +436,6 @@ export function RouteMap({
                     background: ROUTE_COLORS.mv,
                     borderRadius: 2,
                     display: 'inline-block',
-                    boxShadow: '0 0 6px rgba(47,107,255,0.6)',
                   }}
                 />
                 MV
@@ -436,7 +450,6 @@ export function RouteMap({
                     background: ROUTE_COLORS.lv,
                     borderRadius: 2,
                     display: 'inline-block',
-                    boxShadow: '0 0 6px rgba(244,185,66,0.6)',
                   }}
                 />
                 LV
@@ -449,32 +462,32 @@ export function RouteMap({
       {/* ─── FLOATING ROUTE OVERVIEW PANEL (TOP-LEFT OF MAP) ─── */}
       {routeStats && (
         <div className="rm-route-overview-panel">
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#ffffff', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#14181f', marginBottom: 10 }}>
             {routeStats.title}
           </div>
 
-          <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Total Distance</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#ffffff' }}>{routeStats.totalM}</div>
-            <div style={{ fontSize: 11, color: '#60a5fa', fontWeight: 500 }}>{routeStats.totalKm}</div>
+          <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>Total Distance</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#14181f' }}>{routeStats.totalM}</div>
+            <div style={{ fontSize: 11, color: '#4e5868', fontWeight: 600 }}>{routeStats.totalKm}</div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
-              <span style={{ color: '#94a3b8' }}>Average Segment</span>
-              <span style={{ fontWeight: 600, color: '#ffffff' }}>{routeStats.avgM}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
+              <span style={{ color: '#64748b' }}>Average Segment</span>
+              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.avgM}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
-              <span style={{ color: '#94a3b8' }}>Min Segment</span>
-              <span style={{ fontWeight: 600, color: '#ffffff' }}>{routeStats.minM}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
+              <span style={{ color: '#64748b' }}>Min Segment</span>
+              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.minM}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
-              <span style={{ color: '#94a3b8' }}>Max Segment</span>
-              <span style={{ fontWeight: 600, color: '#ffffff' }}>{routeStats.maxM}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
+              <span style={{ color: '#64748b' }}>Max Segment</span>
+              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.maxM}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
-              <span style={{ color: '#94a3b8' }}>Bearing (Start → End)</span>
-              <span style={{ fontWeight: 600, color: '#60a5fa' }}>{routeStats.bearing}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
+              <span style={{ color: '#64748b' }}>Bearing (Start → End)</span>
+              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.bearing}</span>
             </div>
           </div>
         </div>

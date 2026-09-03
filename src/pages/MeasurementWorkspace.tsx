@@ -448,21 +448,48 @@ export function MeasurementWorkspace() {
       {/* ─── TOP APPLICATION HEADER ───────────────────────────────── */}
       <header className="rm-top-header">
         <div className="rm-top-header-inner">
-          <div className="editorial-brand" onClick={() => navigate('/')}>
-            <div className="editorial-logo-icon">
-              <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-                <rect width="32" height="32" rx="8" fill="#2563eb" fillOpacity="0.16" />
-                <path d="M8 24L12 8L16 18L20 12L24 24" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="12" cy="8" r="2.2" fill="#2563eb" />
-                <circle cx="16" cy="18" r="2.2" fill="#2563eb" />
-                <circle cx="20" cy="12" r="2.2" fill="#2563eb" />
-              </svg>
+          <div className="rm-header-left-group">
+            {screen === 'results' && (
+              <button
+                className={`rm-header-sidebar-toggle ${!sidebarCollapsed ? 'sidebar-open' : ''}`}
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                title={sidebarCollapsed ? 'Open Sidebar (Routes & Export)' : 'Hide Sidebar'}
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="6" y1="2" x2="6" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+                <span>{sidebarCollapsed ? 'Routes & Export' : 'Hide Sidebar'}</span>
+              </button>
+            )}
+
+            <div className="editorial-brand" onClick={() => navigate('/')}>
+              <div className="editorial-logo-icon">
+                <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+                  <rect width="32" height="32" rx="8" fill="#2563eb" fillOpacity="0.16" />
+                  <path d="M8 24L12 8L16 18L20 12L24 24" stroke="#2563eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="12" cy="8" r="2.2" fill="#2563eb" />
+                  <circle cx="16" cy="18" r="2.2" fill="#2563eb" />
+                  <circle cx="20" cy="12" r="2.2" fill="#2563eb" />
+                </svg>
+              </div>
+              <span className="editorial-brand-name">RouteMeasure</span>
             </div>
-            <span className="editorial-brand-name">RouteMeasure</span>
           </div>
 
           <div className="rm-header-center-badge">
-            <span>Precision Geospatial Measurement</span>
+            {screen === 'results' && measurementMode ? (
+              <div className="rm-header-mode-indicator">
+                <span className="rm-header-mode-tag">
+                  {measurementMode === 'route' ? 'LV & MV Route' : 'Distance Between Points'}
+                </span>
+                <button className="rm-header-change-type-btn" onClick={handleChangeMode}>
+                  Change Type
+                </button>
+              </div>
+            ) : (
+              <span>Precision Geospatial Measurement</span>
+            )}
           </div>
 
           <div className="rm-header-actions">
@@ -476,45 +503,6 @@ export function MeasurementWorkspace() {
         </div>
       </header>
 
-      {/* ─── TWO-STEP PROGRESS INDICATOR ──────────────────────────── */}
-      <div className="rm-step-bar-container">
-        <div className="rm-step-bar">
-          {/* Step 1: Upload & Confirm */}
-          <div className="rm-step-item">
-            <div className={`rm-step-circle ${screen === 'upload-confirm' ? 'active' : 'completed'}`}>
-              {screen === 'results' ? '✓' : '1'}
-            </div>
-            <span className={`rm-step-label ${screen === 'upload-confirm' ? 'active' : 'completed'}`}>
-              Upload & Confirm
-            </span>
-          </div>
-
-          {/* Connector line */}
-          <div className={`rm-step-connector ${screen === 'results' ? 'completed' : ''}`} />
-
-          {/* Step 2: Results */}
-          <div className="rm-step-item">
-            <div className={`rm-step-circle ${screen === 'results' ? 'active' : 'future'}`}>
-              2
-            </div>
-            <span className={`rm-step-label ${screen === 'results' ? 'active' : 'future'}`}>
-              Results
-            </span>
-          </div>
-        </div>
-
-        {measurementMode && (
-          <div className="rm-active-mode-bar">
-            <span className="rm-active-mode-label">Measurement Type:</span>
-            <span className={`rm-active-mode-pill rm-mode-pill-${measurementMode}`}>
-              {measurementMode === 'route' ? 'LV & MV Route' : 'Distance Between Points'}
-            </span>
-            <button className="rm-change-mode-btn" onClick={handleChangeMode}>
-              Change measurement type
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* ─── DISTANCE WORKSPACE (when mode is 'distance' and results ready) ─── */}
       {measurementMode === 'distance' && screen === 'results' ? (
@@ -842,21 +830,7 @@ export function MeasurementWorkspace() {
 
       {/* ─── SCREEN 2: RESULTS ────────────────────────────────────── */}
       {screen === 'results' && result && displayedSummary && (
-        <div className={`rm-results-workspace-layout ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`} style={{ position: 'relative' }}>
-          {/* FLOATING EXPAND TAB (Visible only when sidebar is collapsed) */}
-          {sidebarCollapsed && (
-            <button
-              className="rm-sidebar-expand-tab"
-              onClick={() => setSidebarCollapsed(false)}
-              title="Show Sidebar"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span>Sidebar</span>
-            </button>
-          )}
-
+        <div className={`rm-results-workspace-layout ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
           {/* LEFT SIDEBAR (Collapsible) */}
           <aside className={`rm-results-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
             {/* Sidebar Top Section & Collapse Button */}
