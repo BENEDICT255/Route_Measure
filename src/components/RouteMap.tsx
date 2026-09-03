@@ -326,27 +326,28 @@ export function RouteMap({
       {mapState === 'loaded' && (
         <div className="rm-map-controls-bar">
           <button
-            style={filterBtnStyle(currentMapType === 'satellite')}
+            className={`rm-map-ctrl-btn ${currentMapType === 'satellite' ? 'active' : ''}`}
             onClick={() => toggleMapType('satellite')}
           >
             Satellite
           </button>
           <button
-            style={filterBtnStyle(currentMapType === 'hybrid')}
+            className={`rm-map-ctrl-btn ${currentMapType === 'hybrid' ? 'active' : ''}`}
             onClick={() => toggleMapType('hybrid')}
           >
             Hybrid
           </button>
           <button
-            style={filterBtnStyle(currentMapType === 'roadmap')}
+            className={`rm-map-ctrl-btn ${currentMapType === 'roadmap' ? 'active' : ''}`}
             onClick={() => toggleMapType('roadmap')}
           >
             Map
           </button>
-          <div style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.12)', margin: '0 2px' }} />
+          <div className="rm-map-controls-divider" />
           <button
-            style={{ ...filterBtnStyle(false), display: 'flex', alignItems: 'center', gap: 4 }}
+            className="rm-map-ctrl-btn"
             onClick={handleFitRoute}
+            title="Auto-Fit Route Bounds"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
@@ -355,7 +356,7 @@ export function RouteMap({
             Fit Route
           </button>
           <button
-            style={{ ...filterBtnStyle(false), color: '#64748b' }}
+            className="rm-map-ctrl-btn"
             title="Configure Google Maps API Key"
             onClick={() => setShowKeyInput(!showKeyInput)}
           >
@@ -367,13 +368,13 @@ export function RouteMap({
       {/* ─── ROUTE FILTER BUTTONS ON MAP (shown whenever multi-route exists) ─── */}
       {mapState === 'loaded' && availableRoutes.length > 1 && (
         <div className="rm-route-filter-bar">
-          <span style={{ fontSize: 10, color: '#64748b', fontWeight: 700, letterSpacing: '0.06em', marginRight: 6 }}>
+          <span className="rm-route-filter-title">
             ROUTES
           </span>
 
           {/* ALL BUTTON */}
           <button
-            style={filterBtnStyle(isFilterActive('all'))}
+            className={`rm-route-filter-pill ${isFilterActive('all') ? 'active' : ''}`}
             onClick={() => onFilterChange('all')}
           >
             All
@@ -383,21 +384,15 @@ export function RouteMap({
           {hasBothTypes ? (
             <>
               <button
-                style={{
-                  ...filterBtnStyle(isFilterActive('mv')),
-                  background: isFilterActive('mv') ? ROUTE_COLORS.mv : 'transparent',
-                  color: isFilterActive('mv') ? '#ffffff' : '#4e5868',
-                }}
+                className={`rm-route-filter-pill ${isFilterActive('mv') ? 'active-mv' : ''}`}
+                style={isFilterActive('mv') ? { background: ROUTE_COLORS.mv, color: '#ffffff', borderColor: ROUTE_COLORS.mv } : {}}
                 onClick={() => onFilterChange('mv')}
               >
                 MV
               </button>
               <button
-                style={{
-                  ...filterBtnStyle(isFilterActive('lv')),
-                  background: isFilterActive('lv') ? ROUTE_COLORS.lv : 'transparent',
-                  color: isFilterActive('lv') ? '#0f172a' : '#4e5868',
-                }}
+                className={`rm-route-filter-pill ${isFilterActive('lv') ? 'active-lv' : ''}`}
+                style={isFilterActive('lv') ? { background: ROUTE_COLORS.lv, color: '#ffffff', borderColor: ROUTE_COLORS.lv } : {}}
                 onClick={() => onFilterChange('lv')}
               >
                 LV
@@ -411,11 +406,8 @@ export function RouteMap({
               return (
                 <button
                   key={r.uid}
-                  style={{
-                    ...filterBtnStyle(active),
-                    background: active ? color : 'transparent',
-                    color: active && cls === 'lv' ? '#0f172a' : active ? '#ffffff' : '#4e5868',
-                  }}
+                  className={`rm-route-filter-pill ${active ? 'active-custom' : ''}`}
+                  style={active ? { background: color, color: '#ffffff', borderColor: color } : {}}
                   onClick={() => onFilterChange(r.uid)}
                 >
                   {r.name}
@@ -425,10 +417,10 @@ export function RouteMap({
           )}
 
           {/* INLINE LEGEND */}
-          <div style={{ width: 1, height: 14, background: 'rgba(0,0,0,0.12)', margin: '0 4px' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: '#64748b' }}>
+          <div className="rm-map-controls-divider" />
+          <div className="rm-map-inline-legend">
             {hasMV && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span className="rm-legend-item">
                 <span
                   style={{
                     width: 14,
@@ -442,7 +434,7 @@ export function RouteMap({
               </span>
             )}
             {hasLV && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span className="rm-legend-item">
                 <span
                   style={{
                     width: 14,
@@ -462,32 +454,32 @@ export function RouteMap({
       {/* ─── FLOATING ROUTE OVERVIEW PANEL (TOP-LEFT OF MAP) ─── */}
       {routeStats && (
         <div className="rm-route-overview-panel">
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#14181f', marginBottom: 10 }}>
+          <div className="rm-overview-title">
             {routeStats.title}
           </div>
 
-          <div style={{ marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>Total Distance</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#14181f' }}>{routeStats.totalM}</div>
-            <div style={{ fontSize: 11, color: '#4e5868', fontWeight: 600 }}>{routeStats.totalKm}</div>
+          <div className="rm-overview-distance-section">
+            <div className="rm-overview-distance-label">Total Distance</div>
+            <div className="rm-overview-dist-m">{routeStats.totalM}</div>
+            <div className="rm-overview-dist-km">{routeStats.totalKm}</div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 11 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
-              <span style={{ color: '#64748b' }}>Average Segment</span>
-              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.avgM}</span>
+          <div className="rm-overview-stats-grid">
+            <div className="rm-overview-row">
+              <span className="rm-overview-label">Average Segment</span>
+              <span className="rm-overview-val">{routeStats.avgM}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
-              <span style={{ color: '#64748b' }}>Min Segment</span>
-              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.minM}</span>
+            <div className="rm-overview-row">
+              <span className="rm-overview-label">Min Segment</span>
+              <span className="rm-overview-val">{routeStats.minM}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
-              <span style={{ color: '#64748b' }}>Max Segment</span>
-              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.maxM}</span>
+            <div className="rm-overview-row">
+              <span className="rm-overview-label">Max Segment</span>
+              <span className="rm-overview-val">{routeStats.maxM}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4e5868' }}>
-              <span style={{ color: '#64748b' }}>Bearing (Start → End)</span>
-              <span style={{ fontWeight: 700, color: '#14181f' }}>{routeStats.bearing}</span>
+            <div className="rm-overview-row">
+              <span className="rm-overview-label">Bearing (Start → End)</span>
+              <span className="rm-overview-val">{routeStats.bearing}</span>
             </div>
           </div>
         </div>
