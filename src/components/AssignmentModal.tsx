@@ -178,24 +178,30 @@ export function AssignmentModal({
     return selectedUids.has(selectedSheetSite.uid);
   }, [selectedSheetSite, selectedUids]);
 
-  // Apply assignment
-  const handleApplyAssignment = () => {
-    setManualError(null);
-    const targetUids = Array.from(selectedUids);
-    if (targetUids.length === 0) return;
+  // Target region state for workflow assignment
+  const [targetRegion, setTargetRegion] = useState<string>('');
 
-    let targetSp: StartingPoint | null = null;
+  useEffect(() => {
+    if (!targetRegion && regions.length > 0) {
+      setTargetRegion(regions[0]);
+    }
+  }, [regions, targetRegion]);
+
+  // Resolve or create the active starting point from current configuration
+  const getOrResolveTargetStartingPoint = (): StartingPoint | null => {
+    setManualError(null);
 
     // 1. If an existing library starting point is chosen
     if (selectedLibrarySpUid) {
-      targetSp = spMap.get(selectedLibrarySpUid) || null;
+      const sp = spMap.get(selectedLibrarySpUid) || null;
+      if (sp) return sp;
     }
 
     // 2. If Option A: From Uploaded Sites
-    if (!targetSp && assignSource === 'sheet') {
+    if (assignSource === 'sheet') {
       if (!selectedSheetSite) {
         setManualError('Please select a site from the uploaded workbook.');
-        return;
+        return null;
       }
       const displayName = getDestinationDisplayLabel(selectedSheetSite);
       // Check if this sheet site already exists in startingPoints
@@ -216,33 +222,33 @@ export function AssignmentModal({
         };
         onAddStartingPoint(existing);
       }
-      targetSp = existing;
+      return existing;
     }
 
     // 3. If Option B: Enter Manually
-    if (!targetSp && assignSource === 'manual') {
+    if (assignSource === 'manual') {
       const name = manualName.trim();
       if (!name) {
         setManualError('Starting point name is required.');
-        return;
+        return null;
       }
       const lat = Number(manualLat.trim());
       const lon = Number(manualLon.trim());
       if (isNaN(lat) || manualLat.trim() === '') {
         setManualError('Latitude must be a valid number.');
-        return;
+        return null;
       }
       if (isNaN(lon) || manualLon.trim() === '') {
         setManualError('Longitude must be a valid number.');
-        return;
+        return null;
       }
       if (lat < -90 || lat > 90) {
         setManualError(`Latitude ${lat} is invalid. Latitude must be between -90 and +90.`);
-        return;
+        return null;
       }
       if (lon < -180 || lon > 180) {
         setManualError(`Longitude ${lon} is invalid. Longitude must be between -180 and +180.`);
-        return;
+        return null;
       }
 
       // Check if duplicate manual name
@@ -260,14 +266,70 @@ export function AssignmentModal({
         };
         onAddStartingPoint(existing);
       }
-      targetSp = existing;
+      return existing;
     }
 
-    if (targetSp) {
-      onAssign(targetUids, targetSp);
-      // Keep selection or reset
-      setSelectedUids(new Set());
+    return null;
+  };
+
+  // Direct action: Select a site from table to be the starting point
+  const handleSetSiteAsStartingPoint = (dest: DestinationSite) => {
+    setSelectedSheetSite(dest);
+    setAssignSource('sheet');
+    setSelectedLibrarySpUid('');
+    setIsControlsExpanded(true);
+    setManualError(null);
+    if (dest.region && dest.region.trim()) {
+      setTargetRegion(dest.region.trim());
     }
+  };
+
+  // Apply to checked checkbox sites
+  const handleApplyAssignment = () => {
+    const targetSp = getOrResolveTargetStartingPoint();
+    if (!targetSp) return;
+
+    const targetUids = Array.from(selectedUids);
+    if (targetUids.length === 0) {
+      setManualError('Please select one or more destination sites below using the checkboxes.');
+      return;
+    }
+
+    onAssign(targetUids, targetSp);
+    setSelectedUids(new Set());
+  };
+
+  // 1-Click: Assign active starting point to ALL destination sites
+  const handleAssignToAllSites = () => {
+    const targetSp = getOrResolveTargetStartingPoint();
+    if (!targetSp) return;
+
+    const allValidUids = destinations
+      .filter((d) => d.status !== 'invalid' && d.status !== 'excluded')
+      .map((d) => d.uid);
+
+    if (allValidUids.length === 0) return;
+    onAssign(allValidUids, targetSp);
+    setSelectedUids(new Set());
+  };
+
+  // 1-Click: Assign active starting point to all sites in a region
+  const handleAssignToRegion = (reg: string) => {
+    if (!reg) return;
+    const targetSp = getOrResolveTargetStartingPoint();
+    if (!targetSp) return;
+
+    const regionUids = destinations
+      .filter((d) => d.region === reg && d.status !== 'invalid' && d.status !== 'excluded')
+      .map((d) => d.uid);
+
+    if (regionUids.length === 0) {
+      setManualError(`No valid destination sites found in region "${reg}".`);
+      return;
+    }
+
+    onAssign(regionUids, targetSp);
+    setSelectedUids(new Set());
   };
 
   // Quick assign by region apply
@@ -348,9 +410,24 @@ export function AssignmentModal({
           <div className="rm-bulk-assign-header">
             <div className="rm-bulk-selected-count">
               {selectedUids.size > 0 ? (
-                <span>
-                  <strong>{selectedUids.size}</strong> site{selectedUids.size > 1 ? 's' : ''} selected
-                </span>
+                <div className="rm-bulk-count-row">
+                  <span>
+                    <strong>{selectedUids.size}</strong> site{selectedUids.size > 1 ? 's' : ''} selected
+                  </span>
+                  {selectedUids.size === 1 && (
+                    <button
+                      type="button"
+                      className="rm-btn-pick-single-start"
+                      onClick={() => {
+                        const targetDest = destinations.find((d) => selectedUids.has(d.uid));
+                        if (targetDest) handleSetSiteAsStartingPoint(targetDest);
+                      }}
+                      title="Set this selected site as Starting Point"
+                    >
+                      📍 Set as Starting Point
+                    </button>
+                  )}
+                </div>
               ) : (
                 <span className="rm-bulk-none-selected">
                   No sites selected (select checkboxes below to bulk assign)
@@ -486,25 +563,106 @@ export function AssignmentModal({
                     )}
                   </div>
 
-                  {/* Read-Only Coordinate Preview */}
+                  {/* Read-Only Coordinate Preview & Starting Point Assignment Workflow */}
                   {selectedSheetSite && (
-                    <div className="rm-readonly-coord-card">
-                      <div className="rm-readonly-row">
-                        <span className="rm-ro-label">Selected Starting Site:</span>
-                        <span className="rm-ro-val font-bold">{getDestinationDisplayLabel(selectedSheetSite)}</span>
+                    <div className="rm-assign-workflow-card">
+                      <div className="rm-workflow-site-header">
+                        <div className="rm-workflow-header-left">
+                          <div className="rm-workflow-badge">📍 Starting Point Selected</div>
+                          <div className="rm-workflow-site-details">
+                            <span className="rm-workflow-site-name">{getDestinationDisplayLabel(selectedSheetSite)}</span>
+                            <span className="rm-workflow-site-coords">
+                              Lat: {selectedSheetSite.latitude.toFixed(6)}, Lon: {selectedSheetSite.longitude.toFixed(6)}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="rm-workflow-change-btn"
+                          onClick={() => {
+                            setSelectedSheetSite(null);
+                            setSheetSearchQuery('');
+                          }}
+                          title="Choose a different site"
+                        >
+                          Change Site
+                        </button>
                       </div>
-                      <div className="rm-readonly-row">
-                        <span className="rm-ro-label">Latitude:</span>
-                        <span className="rm-ro-val">{selectedSheetSite.latitude.toFixed(6)}</span>
-                        <span className="rm-ro-label ml-4">Longitude:</span>
-                        <span className="rm-ro-val">{selectedSheetSite.longitude.toFixed(6)}</span>
-                        <span className="rm-source-tag">Source: Uploaded Site</span>
-                      </div>
+
                       {isSelfAssignment && (
                         <div className="rm-self-assign-note">
-                          ℹ️ This destination is the same as its assigned starting point. Distance will be 0 m.
+                          ℹ️ Note: This site is also in your destinations list. Its calculated distance to itself will be 0 m.
                         </div>
                       )}
+
+                      <div className="rm-workflow-prompt-bar">
+                        <span className="rm-workflow-prompt-text">
+                          Set <strong>{getDestinationDisplayLabel(selectedSheetSite)}</strong> as starting point for:
+                        </span>
+                      </div>
+
+                      <div className="rm-workflow-target-grid">
+                        {/* Option 1: All Destination Sites */}
+                        <button
+                          type="button"
+                          className="rm-workflow-action-card"
+                          onClick={handleAssignToAllSites}
+                        >
+                          <div className="rm-wac-icon">🌐</div>
+                          <div className="rm-wac-content">
+                            <div className="rm-wac-title">All Destination Sites</div>
+                            <div className="rm-wac-desc">Assign to all {summary.total} sites in this workbook</div>
+                          </div>
+                          <span className="rm-wac-arrow">→</span>
+                        </button>
+
+                        {/* Option 2: Sites in Region */}
+                        {regions.length > 0 && (
+                          <div className="rm-workflow-action-card region-card">
+                            <div className="rm-wac-icon">🗺️</div>
+                            <div className="rm-wac-content">
+                              <div className="rm-wac-title">Sites in Region</div>
+                              <div className="rm-wac-region-picker">
+                                <select
+                                  className="rm-workflow-region-select"
+                                  value={targetRegion}
+                                  onChange={(e) => setTargetRegion(e.target.value)}
+                                >
+                                  {regions.map((r) => (
+                                    <option key={r} value={r}>{r}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  className="rm-workflow-region-btn"
+                                  onClick={() => handleAssignToRegion(targetRegion)}
+                                >
+                                  Apply
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Option 3: Selected Checkbox Sites */}
+                        <button
+                          type="button"
+                          className={`rm-workflow-action-card ${selectedUids.size > 0 ? 'active-selection' : ''}`}
+                          disabled={selectedUids.size === 0}
+                          onClick={handleApplyAssignment}
+                        >
+                          <div className="rm-wac-icon">☑️</div>
+                          <div className="rm-wac-content">
+                            <div className="rm-wac-title">Selected Checkbox Sites</div>
+                            <div className="rm-wac-desc">
+                              {selectedUids.size > 0
+                                ? `Apply to ${selectedUids.size} selected site${selectedUids.size !== 1 ? 's' : ''}`
+                                : 'Check boxes next to sites below, then click here'}
+                            </div>
+                          </div>
+                          <span className="rm-wac-arrow">→</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -832,6 +990,14 @@ export function AssignmentModal({
                           </button>
                         ) : (
                           <div className="rm-row-action-group">
+                            <button
+                              type="button"
+                              className="rm-row-action-btn rm-row-btn-start"
+                              onClick={() => handleSetSiteAsStartingPoint(dest)}
+                              title="Select this site as Starting Point"
+                            >
+                              📍 Set as Start
+                            </button>
                             {dest.assignedStartingPointUid && (
                               <button
                                 type="button"

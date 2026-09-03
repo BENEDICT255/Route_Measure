@@ -1491,14 +1491,22 @@ ${displayedSummary.pointDistances
                           type="button"
                           className={`rm-sort-toggle-btn ${distRankSort === 'furthest' ? 'active' : ''}`}
                           onClick={() => setDistRankSort('furthest')}
+                          title="Rank furthest destination sites first"
                         >
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 3V13M8 3L4 7M8 3L12 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                           Rank (Furthest First)
                         </button>
                         <button
                           type="button"
                           className={`rm-sort-toggle-btn ${distRankSort === 'nearest' ? 'active' : ''}`}
                           onClick={() => setDistRankSort('nearest')}
+                          title="Rank nearest destination sites first"
                         >
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 13V3M8 13L4 9M8 13L12 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                           Rank (Nearest First)
                         </button>
                       </div>
@@ -1531,13 +1539,19 @@ ${displayedSummary.pointDistances
                     </div>
 
                     <div className="rm-dist-results-toolbar-right">
-                      <input
-                        type="text"
-                        className="rm-dist-search-input"
-                        placeholder="Search sites..."
-                        value={distSearchQuery}
-                        onChange={(e) => setDistSearchQuery(e.target.value)}
-                      />
+                      <div className="rm-dist-search-wrap">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M11 11L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        <input
+                          type="text"
+                          className="rm-dist-search-input"
+                          placeholder="Search sites..."
+                          value={distSearchQuery}
+                          onChange={(e) => setDistSearchQuery(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
 
