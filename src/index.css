@@ -2236,23 +2236,29 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border: 1px solid var(--rm-border, #e2e8f0);
   border-radius: 20px;
   width: 100%;
-  max-width: 1140px;
+  max-width: 1160px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
   animation: rmModalSlideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
+  scroll-behavior: smooth;
 }
 
 .rm-assign-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 24px 28px 16px;
+  padding: 22px 28px 16px;
   border-bottom: 1px solid var(--rm-border, #e2e8f0);
   background: var(--rm-surface, #ffffff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .rm-assign-modal-header-left {
@@ -2380,6 +2386,12 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   font-size: 12px;
 }
 
+.rm-bulk-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .rm-library-picker {
   display: flex;
   align-items: center;
@@ -2401,6 +2413,28 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   font-size: 12px;
   font-weight: 500;
   outline: none;
+}
+
+.rm-toggle-controls-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--rm-surface-subtle, #f8fafc);
+  border: 1px solid var(--rm-border, #cbd5e1);
+  color: var(--rm-text-secondary, #64748b);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.rm-toggle-controls-btn:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  border-color: #2563eb;
 }
 
 .rm-source-tabs {
@@ -2429,6 +2463,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border-color: #2563eb;
 }
 
+.rm-source-tab.active,
 .rm-source-tab-active {
   background: #2563eb;
   color: #ffffff !important;
@@ -2810,9 +2845,10 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 
 /* Spreadsheet Table */
 .rm-assign-table-wrap {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 280px;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  min-height: 200px;
 }
 
 .rm-assign-table {
@@ -2829,8 +2865,8 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   text-align: left;
   border-bottom: 1px solid var(--rm-border, #e2e8f0);
   position: sticky;
-  top: 0;
-  z-index: 10;
+  top: 71px;
+  z-index: 20;
 }
 
 .rm-assign-table tbody td {
@@ -2954,12 +2990,16 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 
 /* Modal Footer */
 .rm-assign-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 28px;
   background: var(--rm-surface, #ffffff);
   border-top: 1px solid var(--rm-border, #e2e8f0);
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.06);
 }
 
 .rm-footer-status-success {
@@ -6341,5 +6381,17 @@ html, body {
 [data-theme="dark"] .rm-assign-modal-footer {
   background: #0e172e;
   border-top-color: #1e2c4d;
+}
+
+[data-theme="dark"] .rm-toggle-controls-btn {
+  background: #0b1428;
+  border-color: #1e2c4d;
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .rm-toggle-controls-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-color: #3b82f6;
 }
 

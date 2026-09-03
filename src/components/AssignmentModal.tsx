@@ -57,6 +57,7 @@ export function AssignmentModal({
   // Bulk assignment configuration
   const [assignSource, setAssignSource] = useState<AssignmentSourceOption>('sheet');
   const [selectedLibrarySpUid, setSelectedLibrarySpUid] = useState<string>('');
+  const [isControlsExpanded, setIsControlsExpanded] = useState<boolean>(true);
   
   // Option A (From Sheet) state
   const [sheetSearchQuery, setSheetSearchQuery] = useState('');
@@ -354,30 +355,43 @@ export function AssignmentModal({
               )}
             </div>
 
-            {/* Reusable Library Dropdown */}
-            {startingPoints.length > 0 && (
-              <div className="rm-library-picker">
-                <span className="rm-picker-label">Existing Starting Point:</span>
-                <select
-                  className="rm-library-select"
-                  value={selectedLibrarySpUid}
-                  onChange={(e) => {
-                    setSelectedLibrarySpUid(e.target.value);
-                  }}
-                >
-                  <option value="">-- Choose or create below --</option>
-                  {startingPoints.map((sp) => (
-                    <option key={sp.uid} value={sp.uid}>
-                      {sp.name} ({sp.source === 'sheet' ? 'Uploaded' : 'Manual'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="rm-bulk-header-right">
+              {/* Reusable Library Dropdown */}
+              {startingPoints.length > 0 && (
+                <div className="rm-library-picker">
+                  <span className="rm-picker-label">Existing Starting Point:</span>
+                  <select
+                    className="rm-library-select"
+                    value={selectedLibrarySpUid}
+                    onChange={(e) => {
+                      setSelectedLibrarySpUid(e.target.value);
+                    }}
+                  >
+                    <option value="">-- Choose or create below --</option>
+                    {startingPoints.map((sp) => (
+                      <option key={sp.uid} value={sp.uid}>
+                        {sp.name} ({sp.source === 'sheet' ? 'Uploaded' : 'Manual'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="rm-toggle-controls-btn"
+                onClick={() => setIsControlsExpanded(!isControlsExpanded)}
+                title={isControlsExpanded ? 'Minimize setup panel' : 'Expand setup panel'}
+              >
+                {isControlsExpanded ? 'Hide Setup ▲' : 'Setup Starting Point ▼'}
+              </button>
+            </div>
           </div>
 
-          {/* If not using an existing library starting point, show creation source options */}
-          {!selectedLibrarySpUid && (
+          {isControlsExpanded && (
+            <>
+              {/* If not using an existing library starting point, show creation source options */}
+              {!selectedLibrarySpUid && (
             <div className="rm-source-section">
               <div className="rm-source-tabs">
                 <button
@@ -589,7 +603,9 @@ export function AssignmentModal({
               Include in Calculation
             </button>
           </div>
-        </div>
+        </>
+      )}
+    </div>
 
         {/* ─── FILTER & TOOLBAR ─── */}
         <div className="rm-assign-toolbar">
