@@ -975,53 +975,84 @@ ${displayedSummary.pointDistances
                     {/* STARTING POINT ASSIGNMENT SECTION (BEFORE CONFIRM) */}
                     <div className="rm-assignment-progress-card">
                       <div className="rm-assign-progress-header">
-                        <div className="rm-assign-progress-title">
-                          Starting Point Assignment
+                        <div className="rm-assign-progress-left">
+                          <div className="rm-assign-icon-bubble">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                              <circle cx="12" cy="10" r="3" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="rm-assign-progress-title">Starting Point Assignment</div>
+                            <div className="rm-assign-progress-subtitle">
+                              {distanceAssignmentSummary.unassigned === 0 && distanceAssignmentSummary.assigned > 0
+                                ? 'All destination sites ready for calculation'
+                                : 'Every destination site must be paired with an origin'}
+                            </div>
+                          </div>
                         </div>
-                        <div className="rm-assign-progress-badge">
+
+                        <div className="rm-assign-progress-badge-wrap">
                           {distanceAssignmentSummary.unassigned === 0 && distanceAssignmentSummary.assigned > 0 ? (
                             <span className="rm-badge-assigned-complete">
-                              ✓ {distanceAssignmentSummary.assigned} of {distanceAssignmentSummary.total} sites assigned
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                                <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              {distanceAssignmentSummary.assigned} of {distanceAssignmentSummary.total} Sites Assigned
                             </span>
                           ) : (
                             <span className="rm-badge-assigned-pending">
-                              {distanceAssignmentSummary.assigned} of {distanceAssignmentSummary.total} sites assigned
+                              <span className="rm-pending-dot" />
+                              {distanceAssignmentSummary.assigned} of {distanceAssignmentSummary.total} Sites Assigned
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {distanceAssignmentSummary.breakdown.length > 0 && (
-                        <div className="rm-assign-breakdown-list">
-                          <div className="rm-breakdown-note">
-                            {distanceAssignmentSummary.breakdown.length} starting point{distanceAssignmentSummary.breakdown.length !== 1 ? 's' : ''} assigned across {distanceAssignmentSummary.assigned} destination sites:
-                          </div>
-                          {distanceAssignmentSummary.breakdown.map(({ sp, count }: { sp: StartingPoint; count: number }) => (
-                            <div key={sp.uid} className="rm-breakdown-item">
-                              <span className="rm-breakdown-sp-name">{sp.name}</span>
-                              <span className="rm-breakdown-arrow">→</span>
-                              <span className="rm-breakdown-count">{count} site{count !== 1 ? 's' : ''}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
                       {distanceAssignmentSummary.unassigned > 0 && (
-                        <div className="rm-assign-pending-note">
-                          ⚠️ {distanceAssignmentSummary.unassigned} destination site{distanceAssignmentSummary.unassigned !== 1 ? 's' : ''} still need a starting point.
+                        <div className="rm-assign-alert-banner">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          <span>
+                            <strong>{distanceAssignmentSummary.unassigned} destination site{distanceAssignmentSummary.unassigned !== 1 ? 's' : ''}</strong> require a starting origin before calculation can proceed.
+                          </span>
                         </div>
                       )}
 
-                      <button
-                        type="button"
-                        className="rm-btn-open-assignment"
-                        onClick={() => setIsAssignModalOpen(true)}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                          <path d="M11.5 2.5L13.5 4.5L5 13H3V11L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {distanceAssignmentSummary.assigned > 0 ? 'Edit Starting Points' : 'Assign Starting Points'}
-                      </button>
+                      {distanceAssignmentSummary.breakdown.length > 0 && (
+                        <div className="rm-assign-breakdown-box">
+                          <div className="rm-breakdown-caption">Active Starting Point Distribution:</div>
+                          <div className="rm-breakdown-tags">
+                            {distanceAssignmentSummary.breakdown.map(({ sp, count }: { sp: StartingPoint; count: number }) => (
+                              <div key={sp.uid} className="rm-breakdown-tag">
+                                <span className="rm-tag-dot" />
+                                <span className="rm-tag-name">{sp.name}</span>
+                                <span className="rm-tag-count">{count} site{count !== 1 ? 's' : ''}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rm-assign-action-bar">
+                        <button
+                          type="button"
+                          className={`rm-btn-open-assignment ${distanceAssignmentSummary.assigned > 0 ? 'is-edit' : 'is-primary'}`}
+                          onClick={() => setIsAssignModalOpen(true)}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          <span>{distanceAssignmentSummary.assigned > 0 ? 'Modify Starting Point Assignments' : 'Assign Starting Points'}</span>
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 2 }}>
+                            <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Confirmation Actions */}
