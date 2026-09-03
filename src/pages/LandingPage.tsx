@@ -188,8 +188,8 @@ export function LandingPage() {
             </h1>
 
             <p className="editorial-hero-subtitle">
-              High-precision WGS84 geodesic route calculation and network polyline mapping for power transmission lines,
-              utility infrastructure, and survey engineering — 100% in-browser from your coordinate spreadsheets.
+              High precision route calculation and network polyline mapping for power transmission lines,
+              utility infrastructure, and survey engineering from your coordinate spreadsheets.
             </p>
 
             {/* Action Buttons */}
