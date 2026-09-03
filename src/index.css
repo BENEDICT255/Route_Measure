@@ -1457,32 +1457,36 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 .modal-content {
   background: var(--rm-surface, #ffffff);
   border: 1px solid var(--rm-border, #e5dfd2);
-  border-radius: 20px;
-  max-width: 680px;
+  border-radius: 18px;
+  max-width: 720px;
   width: 100%;
-  padding: 32px;
+  padding: 22px 28px;
   color: var(--rm-text-primary, #14181f);
   position: relative;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-  max-height: 90vh;
-  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+.modal-content::-webkit-scrollbar {
+  display: none;
 }
 
 .modal-close {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 16px;
+  right: 16px;
   background: var(--rm-surface-subtle, #f5f1e8);
   border: 1px solid var(--rm-border, #e5dfd2);
   color: var(--rm-text-secondary, #4e5868);
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.15s ease;
 }
 
@@ -1493,7 +1497,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
 }
 
 .modal-header {
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
 .modal-badge {
@@ -1503,109 +1507,116 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--editorial-accent, #2563eb);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .modal-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--rm-text-primary, #14181f);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .modal-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--rm-text-secondary, #4e5868);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .modal-steps-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .modal-step-card {
   background: var(--rm-surface-subtle, #f5f1e8);
   border: 1px solid var(--rm-border, #e5dfd2);
-  border-radius: 12px;
-  padding: 18px;
+  border-radius: 10px;
+  padding: 12px 16px;
 }
 
 .modal-step-num {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 800;
   color: var(--editorial-accent, #2563eb);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .modal-step-card h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: var(--rm-text-primary, #14181f);
 }
 
 .modal-step-card p {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--rm-text-secondary, #4e5868);
-  line-height: 1.5;
+  line-height: 1.4;
   margin: 0;
 }
 
 .modal-body-text {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--rm-text-secondary, #4e5868);
-  line-height: 1.65;
-  margin-bottom: 24px;
+  line-height: 1.55;
+  margin-bottom: 16px;
 }
 
 .modal-section-title {
   color: var(--rm-text-primary, #14181f);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  margin-top: 20px;
-  margin-bottom: 8px;
+  margin-top: 14px;
+  margin-bottom: 6px;
 }
 
 .modal-list {
-  padding-left: 20px;
+  padding-left: 18px;
   color: var(--rm-text-secondary, #4e5868);
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
 .modal-info-box {
   background: var(--editorial-accent-soft);
   border: 1px solid var(--editorial-accent-glow);
   border-radius: 10px;
-  padding: 16px;
-  margin: 16px 0;
+  padding: 12px 14px;
+  margin: 12px 0;
 }
 
 .modal-info-box h4 {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--editorial-accent, #2563eb);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .modal-info-box p {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--rm-text-secondary, #4e5868);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding-top: 18px;
+  gap: 10px;
+  padding-top: 14px;
   border-top: 1px solid var(--rm-border, #e5dfd2);
+}
+
+.modal-footer .editorial-btn-secondary,
+.modal-footer .editorial-btn-primary {
+  padding: 8px 18px;
+  font-size: 13.5px;
+  border-radius: 8px;
 }
 
 /* Consistent Card Style across the app */
