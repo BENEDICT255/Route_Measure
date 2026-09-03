@@ -75,6 +75,8 @@ export function AssignmentModal({
   // Quick Assign by Region helper
   const [showQuickAssign, setShowQuickAssign] = useState(false);
   const [regionSpMap, setRegionSpMap] = useState<Record<string, string>>({});
+  const [pickingRegion, setPickingRegion] = useState<string | null>(null);
+  const [regionSearchQuery, setRegionSearchQuery] = useState<string>('');
 
   // Available regions
   const regions = useMemo(() => getUniqueRegions(destinations), [destinations]);
@@ -85,6 +87,52 @@ export function AssignmentModal({
     for (const sp of startingPoints) m.set(sp.uid, sp);
     return m;
   }, [startingPoints]);
+
+  // Helper to format currently selected SP for a region
+  const getSelectedRegionSpDisplay = useCallback((val: string | undefined): { name: string; coords?: string } | null => {
+    if (!val) return null;
+    if (val.startsWith('dest:')) {
+      const destUid = val.replace('dest:', '');
+      const destSite = destinations.find((d) => d.uid === destUid);
+      if (destSite) {
+        return {
+          name: getDestinationDisplayLabel(destSite),
+          coords: `${destSite.latitude.toFixed(5)}, ${destSite.longitude.toFixed(5)}`,
+        };
+      }
+    } else {
+      const sp = spMap.get(val);
+      if (sp) {
+        return {
+          name: sp.name,
+          coords: `${sp.latitude.toFixed(5)}, ${sp.longitude.toFixed(5)}`,
+        };
+      }
+    }
+    return null;
+  }, [destinations, spMap]);
+
+  // Search results for picking a sheet site for a specific region
+  const filteredRegionSheetSites = useMemo(() => {
+    const valid = destinations.filter((d) => d.status !== 'invalid');
+    if (!regionSearchQuery.trim()) return valid;
+    const q = regionSearchQuery.toLowerCase();
+    return valid.filter((d) =>
+      (d.siteId && d.siteId.toLowerCase().includes(q)) ||
+      (d.siteName && d.siteName.toLowerCase().includes(q)) ||
+      (d.legacySiteId && d.legacySiteId.toLowerCase().includes(q)) ||
+      (d.region && d.region.toLowerCase().includes(q))
+    );
+  }, [destinations, regionSearchQuery]);
+
+  const handleSelectSheetSiteForRegion = (reg: string, dest: DestinationSite) => {
+    setRegionSpMap((prev) => ({
+      ...prev,
+      [reg]: `dest:${dest.uid}`,
+    }));
+    setPickingRegion(null);
+    setRegionSearchQuery('');
+  };
 
   // Click outside to close sheet search dropdown
   useEffect(() => {
@@ -334,9 +382,41 @@ export function AssignmentModal({
 
   // Quick assign by region apply
   const handleApplyQuickAssign = () => {
-    for (const [region, spUid] of Object.entries(regionSpMap)) {
-      if (!spUid) continue;
-      const sp = spMap.get(spUid);
+    for (const [region, selectedVal] of Object.entries(regionSpMap)) {
+      if (!selectedVal) continue;
+      
+      let sp: StartingPoint | undefined;
+      
+      if (selectedVal.startsWith('dest:')) {
+        // User selected a destination site as starting point
+        const destUid = selectedVal.replace('dest:', '');
+        const destSite = destinations.find((d) => d.uid === destUid);
+        if (!destSite) continue;
+        
+        // Check if we already created a starting point for this dest site
+        let existingSp = startingPoints.find(
+          (s) => s.source === 'sheet' && s.sourceSiteUid === destSite.uid
+        );
+        if (!existingSp) {
+          existingSp = {
+            uid: generateUid(),
+            name: getDestinationDisplayLabel(destSite),
+            latitude: destSite.latitude,
+            longitude: destSite.longitude,
+            description: destSite.region ? `Region: ${destSite.region}` : 'Uploaded Site',
+            source: 'sheet',
+            startingSiteId: destSite.siteId || destSite.legacySiteId,
+            sourceSiteUid: destSite.uid,
+            sourceRow: destSite.sourceRow,
+          };
+          onAddStartingPoint(existingSp);
+        }
+        sp = existingSp;
+      } else {
+        // User selected an existing starting point
+        sp = spMap.get(selectedVal);
+      }
+      
       if (!sp) continue;
       const matchingDests = destinations
         .filter((d) => d.region === region && d.status !== 'excluded' && d.status !== 'invalid')
@@ -843,21 +923,102 @@ export function AssignmentModal({
               ⚡ Quick Assign Starting Points by Region/WHS
             </div>
             <div className="rm-quick-assign-grid">
-              {regions.map((reg) => (
-                <div key={reg} className="rm-quick-assign-item">
-                  <span className="rm-qa-region-name">{reg}</span>
-                  <select
-                    className="rm-qa-select"
-                    value={regionSpMap[reg] || ''}
-                    onChange={(e) => setRegionSpMap({ ...regionSpMap, [reg]: e.target.value })}
-                  >
-                    <option value="">-- Choose Starting Point --</option>
-                    {startingPoints.map((sp) => (
-                      <option key={sp.uid} value={sp.uid}>{sp.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              {regions.map((reg) => {
+                const selectedInfo = getSelectedRegionSpDisplay(regionSpMap[reg]);
+                const isPickingThis = pickingRegion === reg;
+
+                return (
+                  <div key={reg} className={`rm-quick-assign-item ${isPickingThis ? 'picking-active' : ''}`}>
+                    <div className="rm-qa-item-top">
+                      <span className="rm-qa-region-name">{reg}</span>
+                      {selectedInfo && (
+                        <span className="rm-qa-selected-badge" title={selectedInfo.coords}>
+                          ✓ {selectedInfo.name}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="rm-qa-controls-row">
+                      <select
+                        className="rm-qa-select"
+                        value={regionSpMap[reg] || ''}
+                        onChange={(e) => setRegionSpMap({ ...regionSpMap, [reg]: e.target.value })}
+                      >
+                        <option value="">-- Choose Starting Point --</option>
+                        {startingPoints.length > 0 && (
+                          <optgroup label="Existing Starting Points">
+                            {startingPoints.map((sp) => (
+                              <option key={sp.uid} value={sp.uid}>
+                                {sp.name} ({sp.source === 'sheet' ? 'Uploaded' : 'Manual'})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="From Uploaded Sites">
+                          {destinations
+                            .filter((d) => d.status !== 'invalid')
+                            .map((d) => (
+                              <option key={`dest-${d.uid}`} value={`dest:${d.uid}`}>
+                                {getDestinationDisplayLabel(d)}{d.region ? ` — ${d.region}` : ''}
+                              </option>
+                            ))}
+                        </optgroup>
+                      </select>
+
+                      <button
+                        type="button"
+                        className={`rm-btn-qa-choose ${isPickingThis ? 'active' : ''}`}
+                        onClick={() => {
+                          setPickingRegion(isPickingThis ? null : reg);
+                          setRegionSearchQuery('');
+                        }}
+                        title={`Choose a specific site from Excel sheet as starting point for ${reg}`}
+                      >
+                        {isPickingThis ? '✕ Close' : '📍 Choose'}
+                      </button>
+                    </div>
+
+                    {/* Interactive Picker for choosing site from Excel sheet */}
+                    {isPickingThis && (
+                      <div className="rm-qa-sheet-picker-box">
+                        <div className="rm-qa-picker-instruction">
+                          Choose a site from the Excel sheet to use its coordinates for <strong>{reg}</strong>:
+                        </div>
+                        <input
+                          type="text"
+                          className="rm-qa-picker-input"
+                          placeholder="Search sites by ID, Name, Coordinates..."
+                          value={regionSearchQuery}
+                          onChange={(e) => setRegionSearchQuery(e.target.value)}
+                          autoFocus
+                        />
+                        <div className="rm-qa-picker-results">
+                          {filteredRegionSheetSites.length === 0 ? (
+                            <div className="rm-qa-picker-empty">No sites match your search.</div>
+                          ) : (
+                            filteredRegionSheetSites.map((d) => (
+                              <div
+                                key={d.uid}
+                                className="rm-qa-picker-row"
+                                onClick={() => handleSelectSheetSiteForRegion(reg, d)}
+                              >
+                                <div className="rm-qa-picker-row-main">
+                                  <strong>{d.siteId || d.siteName}</strong>
+                                  {d.siteName && d.siteId && <span className="rm-qa-picker-sub"> — {d.siteName}</span>}
+                                  {d.region && <span className="rm-qa-picker-tag">{d.region}</span>}
+                                </div>
+                                <div className="rm-qa-picker-row-coords">
+                                  Lat: {d.latitude.toFixed(5)}, Lon: {d.longitude.toFixed(5)}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div className="rm-quick-assign-actions">
               <button
@@ -875,6 +1036,26 @@ export function AssignmentModal({
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Banner when choosing a site for a region */}
+        {pickingRegion && (
+          <div className="rm-picking-region-banner">
+            <div className="rm-prb-text">
+              <span className="rm-prb-icon">📍</span>
+              <div>
+                <span className="rm-prb-title">Choosing starting point for <strong>{pickingRegion}</strong>:</span>
+                <span className="rm-prb-sub">Click "📍 Use for {pickingRegion}" on any site in the table below, or select from the list above.</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="rm-prb-cancel-btn"
+              onClick={() => setPickingRegion(null)}
+            >
+              Cancel
+            </button>
           </div>
         )}
 
@@ -990,6 +1171,16 @@ export function AssignmentModal({
                           </button>
                         ) : (
                           <div className="rm-row-action-group">
+                            {pickingRegion && (
+                              <button
+                                type="button"
+                                className="rm-row-action-btn rm-row-btn-choose-region"
+                                onClick={() => handleSelectSheetSiteForRegion(pickingRegion, dest)}
+                                title={`Use this site's coordinates as starting point for ${pickingRegion}`}
+                              >
+                                📍 Use for {pickingRegion}
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="rm-row-action-btn rm-row-btn-start"

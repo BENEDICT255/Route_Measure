@@ -63,7 +63,8 @@ export function MeasurementWorkspace() {
   const [distRankSort, setDistRankSort] = useState<'furthest' | 'nearest'>('furthest');
   const [distSearchQuery, setDistSearchQuery] = useState<string>('');
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(true);
+  const [showMap, setShowMap] = useState<boolean>(false);
   const [activeModal, setActiveModal] = useState<'how-it-works' | 'accuracy' | 'privacy' | null>(null);
 
   const [apiKey, setApiKey] = useState<string>(
@@ -299,6 +300,8 @@ export function MeasurementWorkspace() {
           );
           setDistResult(distCalcResult);
           setDistStartingPointFilter('all');
+          setSidebarCollapsed(true);
+          setShowMap(false);
           setIsProcessing(false);
           setScreen('results');
         } else {
@@ -323,6 +326,8 @@ export function MeasurementWorkspace() {
 
           setResult(measurementResult);
           setSelectedFilter('all');
+          setSidebarCollapsed(true);
+          setShowMap(false);
           setIsProcessing(false);
           setScreen('results');
         }
@@ -1402,7 +1407,7 @@ ${displayedSummary.pointDistances
 
           {/* MAIN RESULTS CONTENT */}
           <main className="rm-results-main">
-            <div className="rm-results-grid">
+            <div className={`rm-results-grid ${!showMap ? 'map-hidden' : ''}`}>
               {/* LEFT COLUMN: Site Distance Analysis & Results Table */}
               <div className="rm-results-left-col">
                 {/* TOP SITE DISTANCE ANALYSIS CARD */}
@@ -1552,6 +1557,19 @@ ${displayedSummary.pointDistances
                           onChange={(e) => setDistSearchQuery(e.target.value)}
                         />
                       </div>
+                      <button
+                        type="button"
+                        className={`rm-map-toggle-btn ${showMap ? 'active' : ''}`}
+                        onClick={() => setShowMap(!showMap)}
+                        title={showMap ? 'Hide Map' : 'Show Map'}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                          <line x1="8" y1="2" x2="8" y2="18" />
+                          <line x1="16" y1="6" x2="16" y2="22" />
+                        </svg>
+                        {showMap ? 'Hide Map' : 'View on Map'}
+                      </button>
                     </div>
                   </div>
 
@@ -1627,16 +1645,18 @@ ${displayedSummary.pointDistances
               </div>
 
               {/* RIGHT COLUMN: Google Maps Satellite View with independent lines */}
-              <div className="rm-results-right-col">
-                <DistanceMap
-                  analysisResult={distResult}
-                  startingPointFilter={distStartingPointFilter}
-                  selectedSiteUid={selectedDistanceSiteUid}
-                  onSiteSelect={setSelectedDistanceSiteUid}
-                  apiKey={apiKey}
-                  onApiKeyChange={handleApiKeyChange}
-                />
-              </div>
+              {showMap && (
+                <div className="rm-results-right-col">
+                  <DistanceMap
+                    analysisResult={distResult}
+                    startingPointFilter={distStartingPointFilter}
+                    selectedSiteUid={selectedDistanceSiteUid}
+                    onSiteSelect={setSelectedDistanceSiteUid}
+                    apiKey={apiKey}
+                    onApiKeyChange={handleApiKeyChange}
+                  />
+                </div>
+              )}
             </div>
           </main>
         </div>
@@ -1856,7 +1876,7 @@ ${displayedSummary.pointDistances
 
           {/* MAIN RESULTS CONTENT AREA */}
           <main className="rm-results-main">
-            <div className="rm-results-grid">
+            <div className={`rm-results-grid ${!showMap ? 'map-hidden' : ''}`}>
               {/* LEFT COLUMN: Summary Card & Data Table */}
               <div className="rm-results-left-col">
                 {/* METRICS CARD */}
@@ -1929,6 +1949,20 @@ ${displayedSummary.pointDistances
                       onClick={() => setActiveTab('segments')}
                     >
                       Segments ({displayedSummary.segmentCount})
+                    </button>
+                    <div style={{ flex: 1 }} />
+                    <button
+                      type="button"
+                      className={`rm-map-toggle-btn ${showMap ? 'active' : ''}`}
+                      onClick={() => setShowMap(!showMap)}
+                      title={showMap ? 'Hide Map' : 'Show Map'}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                        <line x1="8" y1="2" x2="8" y2="18" />
+                        <line x1="16" y1="6" x2="16" y2="22" />
+                      </svg>
+                      {showMap ? 'Hide Map' : 'View on Map'}
                     </button>
                   </div>
 
@@ -2003,16 +2037,18 @@ ${displayedSummary.pointDistances
               </div>
 
               {/* RIGHT COLUMN: Interactive Map */}
-              <div className="rm-results-right-col">
-                <RouteMap
-                  route={activeRoutes[0] || null}
-                  allRoutes={activeRoutes}
-                  selectedFilter={selectedFilter}
-                  onFilterChange={handleFilterChange}
-                  apiKey={apiKey}
-                  onApiKeyChange={handleApiKeyChange}
-                />
-              </div>
+              {showMap && (
+                <div className="rm-results-right-col">
+                  <RouteMap
+                    route={activeRoutes[0] || null}
+                    allRoutes={activeRoutes}
+                    selectedFilter={selectedFilter}
+                    onFilterChange={handleFilterChange}
+                    apiKey={apiKey}
+                    onApiKeyChange={handleApiKeyChange}
+                  />
+                </div>
+              )}
             </div>
           </main>
         </div>
