@@ -449,20 +449,6 @@ export function MeasurementWorkspace() {
       <header className="rm-top-header">
         <div className="rm-top-header-inner">
           <div className="rm-header-left-group">
-            {screen === 'results' && (
-              <button
-                className={`rm-header-sidebar-toggle ${!sidebarCollapsed ? 'sidebar-open' : ''}`}
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                title={sidebarCollapsed ? 'Open Sidebar (Routes & Export)' : 'Hide Sidebar'}
-              >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                  <line x1="6" y1="2" x2="6" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
-                <span>{sidebarCollapsed ? 'Routes & Export' : 'Hide Sidebar'}</span>
-              </button>
-            )}
-
             <div className="editorial-brand" onClick={() => navigate('/')}>
               <div className="editorial-logo-icon">
                 <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
@@ -830,119 +816,208 @@ export function MeasurementWorkspace() {
 
       {/* ─── SCREEN 2: RESULTS ────────────────────────────────────── */}
       {screen === 'results' && result && displayedSummary && (
-        <div className={`rm-results-workspace-layout ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
-          {/* LEFT SIDEBAR (Collapsible) */}
-          <aside className={`rm-results-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-            {/* Sidebar Top Section & Collapse Button */}
-            <div className="rm-sidebar-header">
-              <div className="rm-sidebar-title-badge">
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 13L7 5L11 9L14 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="3" cy="13" r="1.5" fill="currentColor"/>
-                  <circle cx="7" cy="5" r="1.5" fill="currentColor"/>
-                  <circle cx="11" cy="9" r="1.5" fill="currentColor"/>
-                  <circle cx="14" cy="3" r="1.5" fill="currentColor"/>
-                </svg>
-                <span>Route Measurement</span>
-              </div>
+        <div className={`rm-results-workspace-layout ${sidebarCollapsed ? 'sidebar-is-collapsed' : 'sidebar-is-expanded'}`}>
+          {/* CHATGPT-STYLE SIDEBAR */}
+          {sidebarCollapsed ? (
+            /* COLLAPSED SLIM ICON RAIL */
+            <aside className="rm-sidebar-rail" title="Navigation">
               <button
-                className="rm-sidebar-collapse-btn"
-                onClick={() => setSidebarCollapsed(true)}
-                title="Collapse Sidebar"
+                className="rm-rail-btn rm-rail-toggle-btn"
+                onClick={() => setSidebarCollapsed(false)}
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
               >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M10 13L5 8L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="M9 3v18" />
                 </svg>
               </button>
-            </div>
 
-            {/* Route Selection (if multi-route) */}
-            {result.routes.length > 1 && (
-              <div className="rm-sidebar-section">
-                <div className="rm-sidebar-section-title">ROUTES</div>
+              <div className="rm-rail-divider" />
 
-                {/* ALL ROUTES BUTTON */}
+              <button
+                className="rm-rail-btn"
+                onClick={handleNewUpload}
+                title="New Upload"
+                aria-label="New Upload"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+
+              <button
+                className={`rm-rail-btn ${selectedFilter === 'all' ? 'active' : ''}`}
+                onClick={() => handleFilterChange('all')}
+                title="All Routes"
+                aria-label="All Routes"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19L9 9L15 15L20 5" />
+                </svg>
+              </button>
+
+              <button
+                className="rm-rail-btn"
+                onClick={handleExportExcel}
+                title="Export Excel Report"
+                aria-label="Export Excel"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="8" y1="13" x2="16" y2="13" />
+                  <line x1="8" y1="17" x2="16" y2="17" />
+                </svg>
+              </button>
+
+              <button
+                className="rm-rail-btn"
+                onClick={handleExportKML}
+                title="Export KML Map"
+                aria-label="Export KML"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+              </button>
+
+              <div className="rm-rail-bottom">
                 <button
-                  className={`rm-sidebar-btn ${isAllSelected ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('all')}
+                  className="rm-rail-btn"
+                  onClick={() => setActiveModal('accuracy')}
+                  title="About & Accuracy"
+                  aria-label="About"
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 4H14M2 8H14M2 12H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
-                  All ({result.routes.map((r) => r.name).join(' & ')})
+                </button>
+              </div>
+            </aside>
+          ) : (
+            /* EXPANDED FULL SIDEBAR */
+            <aside className="rm-results-sidebar rm-sidebar-expanded">
+              {/* Sidebar Header with Toggle Icon */}
+              <div className="rm-sidebar-header">
+                <div className="rm-sidebar-title-badge">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 19L9 9L15 15L20 5" />
+                  </svg>
+                  <span>RouteMeasure</span>
+                </div>
+                <button
+                  className="rm-sidebar-collapse-btn"
+                  onClick={() => setSidebarCollapsed(true)}
+                  title="Collapse sidebar"
+                  aria-label="Collapse sidebar"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M9 3v18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Action Button: New Upload */}
+              <button className="rm-sidebar-new-upload-btn" onClick={handleNewUpload}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span>New Measurement</span>
+              </button>
+
+              {/* Route Selection (if multi-route) */}
+              {result.routes.length > 1 && (
+                <div className="rm-sidebar-section">
+                  <div className="rm-sidebar-section-title">ROUTES</div>
+
+                  {/* ALL ROUTES BUTTON */}
+                  <button
+                    className={`rm-sidebar-btn ${isAllSelected ? 'active' : ''}`}
+                    onClick={() => handleFilterChange('all')}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 4H14M2 8H14M2 12H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    All ({result.routes.map((r) => r.name).join(' & ')})
+                  </button>
+
+                  {/* INDIVIDUAL ROUTE BUTTONS */}
+                  {result.routes.map((r) => {
+                    const cls = classifyRoute(r.name);
+                    const color = ROUTE_COLORS[cls];
+                    const isRouteActive = !isAllSelected && activeRoutes.some((ar) => ar.uid === r.uid);
+                    return (
+                      <button
+                        key={r.uid}
+                        className={`rm-sidebar-btn ${isRouteActive ? 'active' : ''}`}
+                        onClick={() => handleFilterChange(r.uid)}
+                      >
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: color,
+                            display: 'inline-block',
+                            flexShrink: 0,
+                          }}
+                        />
+                        {r.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Export Section */}
+              <div className="rm-sidebar-section">
+                <div className="rm-sidebar-section-title">EXPORT DELIVERABLES</div>
+                <button className="rm-sidebar-btn" onClick={handleExportExcel}>
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M5 5L11 11M11 5L5 11" stroke="#059669" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  Excel Report (.xlsx)
+                </button>
+                <button className="rm-sidebar-btn" onClick={handleExportKML}>
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                    <ellipse cx="8" cy="8" rx="6" ry="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                    <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.2"/>
+                  </svg>
+                  GIS Export (.kml)
+                </button>
+              </div>
+
+              {/* Bottom Links */}
+              <div className="rm-sidebar-bottom-section">
+                <button className="rm-sidebar-btn" onClick={() => setActiveModal('accuracy')}>
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M8 7V11M8 5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  About &amp; Geodesics
+                </button>
+                <button className="rm-sidebar-btn" onClick={() => setActiveModal('how-it-works')}>
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M6.5 6C6.5 5.2 7.2 4.5 8 4.5C8.8 4.5 9.5 5.2 9.5 6C9.5 7 8 7.5 8 9M8 11.5V12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                  How It Works
                 </button>
 
-                {/* INDIVIDUAL ROUTE BUTTONS */}
-                {result.routes.map((r) => {
-                  const cls = classifyRoute(r.name);
-                  const color = ROUTE_COLORS[cls];
-                  const isRouteActive = !isAllSelected && activeRoutes.some((ar) => ar.uid === r.uid);
-                  return (
-                    <button
-                      key={r.uid}
-                      className={`rm-sidebar-btn ${isRouteActive ? 'active' : ''}`}
-                      onClick={() => handleFilterChange(r.uid)}
-                    >
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: color,
-                          display: 'inline-block',
-                          flexShrink: 0,
-                          boxShadow: `0 0 6px ${color}88`,
-                        }}
-                      />
-                      {r.name}
-                    </button>
-                  );
-                })}
+                <div className="rm-sidebar-footer-note">
+                  All processing done in-browser.<br />Client coordinates are never uploaded.
+                </div>
               </div>
-            )}
-
-            {/* Export Section */}
-            <div className="rm-sidebar-section">
-              <div className="rm-sidebar-section-title">EXPORT</div>
-              <button className="rm-sidebar-btn" onClick={handleExportExcel}>
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M5 5L11 11M11 5L5 11" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                Excel Report
-              </button>
-              <button className="rm-sidebar-btn" onClick={handleExportKML}>
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
-                  <ellipse cx="8" cy="8" rx="6" ry="2.5" stroke="currentColor" strokeWidth="1.2"/>
-                  <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.2"/>
-                </svg>
-                KML Export
-              </button>
-            </div>
-
-            {/* Bottom Links */}
-            <div className="rm-sidebar-bottom-section">
-              <button className="rm-sidebar-btn" onClick={() => setActiveModal('accuracy')}>
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M8 7V11M8 5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                About
-              </button>
-              <button className="rm-sidebar-btn" onClick={() => setActiveModal('how-it-works')}>
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M6.5 6C6.5 5.2 7.2 4.5 8 4.5C8.8 4.5 9.5 5.2 9.5 6C9.5 7 8 7.5 8 9M8 11.5V12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-                Help
-              </button>
-
-              <div className="rm-sidebar-footer-note">
-                All processing is done in your browser.<br />Your data is never uploaded.
-              </div>
-            </div>
-          </aside>
+            </aside>
+          )}
 
           {/* MAIN WORKSPACE CONTENT */}
           <main className="rm-results-main">
