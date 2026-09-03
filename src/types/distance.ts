@@ -12,13 +12,13 @@ import type { DetectedColumn } from './workbook';
 // ─── Starting Point ────────────────────────────────────────────────
 
 /** Source of a starting point */
-export type StartingPointSource = 'manual' | 'workbook' | 'detected';
+export type StartingPointSource = 'manual' | 'sheet' | 'workbook' | 'detected';
 
 /** A starting/reference point (origin for distance measurement) */
 export interface StartingPoint {
   /** Internal unique identifier */
   uid: string;
-  /** Display name (e.g. "Amanzi Warehouse") */
+  /** Display name (e.g. "Amanzi Warehouse" or "Nanyamba — TZMT2156") */
   name: string;
   /** Latitude in decimal degrees (WGS84) */
   latitude: number;
@@ -28,7 +28,11 @@ export interface StartingPoint {
   description?: string;
   /** How this starting point was created */
   source: StartingPointSource;
-  /** Source row in workbook (if source === 'workbook' or 'detected') */
+  /** Site ID if source === 'sheet' or 'workbook' */
+  startingSiteId?: string;
+  /** Source site UID if source === 'sheet' */
+  sourceSiteUid?: string;
+  /** Source row in workbook (if source === 'workbook' or 'detected' or 'sheet') */
   sourceRow?: number;
 }
 
