@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import type { WorkbookAnalysis, RawSheetData } from '../types/workbook';
-import type { MeasurementResult, MeasuredRoute, RoutePoint } from '../types/coordinates';
+import type { WorkbookAnalysis, RawSheetData, DetectedColumn } from '../types/workbook';
+import { DetectionConfidence } from '../types/workbook';
+import type { MeasurementResult } from '../types/coordinates';
 import type {
   MeasurementMode,
   DistanceWorkbookAnalysis,
@@ -14,11 +15,11 @@ import { validateFile, readWorkbook, generateFileHash } from '../workbook/workbo
 import { selectBestSheet } from '../workbook/workbookAnalysis';
 import { processWorkbook } from '../workbook/normalization';
 import { analyzeDistanceWorkbook, findRealDistanceTable } from '../workbook/distanceDetection';
-import { parseDestinationSites, getDestinationDisplayLabel, getUniqueRegions } from '../workbook/distanceParser';
+import { parseDestinationSites, getUniqueRegions } from '../workbook/distanceParser';
 import { calculateDistances, recomputeRanks } from '../measurement/distanceCalculator';
 import { exportDistanceExcel } from '../exports/distanceExport';
 import { exportDistanceKml } from '../exports/distanceKmlExport';
-import { formatDistanceMetres, formatDistanceKilometres, formatCoordinate, formatNumber } from '../utils/formatters';
+import { formatDistanceMetres, formatDistanceKilometres, formatCoordinate, generateUid } from '../utils/formatters';
 import { ACCEPTED_FILE_EXTENSIONS, MAX_FILE_SIZE_DISPLAY } from '../utils/constants';
 import { ValidationSeverity } from '../types/coordinates';
 import { RouteMap } from '../components/RouteMap';
@@ -26,6 +27,16 @@ import { DistanceMap } from '../components/DistanceMap';
 import { AssignmentModal } from '../components/AssignmentModal';
 import { classifyRoute, ROUTE_COLORS } from '../mapping/GoogleMapsAdapter';
 import { HowItWorksModal, AccuracyModal, PrivacyModal } from '../components/LandingModals';
+import { AssistantButton } from '../components/AssistantButton';
+import { AssistantPanel } from '../components/AssistantPanel';
+import { ReviewDataModal } from '../components/ReviewDataModal';
+import { ManualColumnReviewCard } from '../components/ManualColumnReviewCard';
+import type {
+  AssistantPreparationResult,
+  AssistantTargetMode,
+  NormalizedPointRecord,
+  NormalizedDistanceRecord,
+} from '../assistant/types';
 
 type WorkspaceScreen = 'upload-confirm' | 'results';
 
@@ -62,6 +73,13 @@ export function MeasurementWorkspace() {
   const [distRegionFilter, setDistRegionFilter] = useState<string>('all');
   const [distRankSort, setDistRankSort] = useState<'furthest' | 'nearest'>('furthest');
   const [distSearchQuery, setDistSearchQuery] = useState<string>('');
+
+  // Assistant & Manual review state
+  const [isAssistantOpen, setIsAssistantOpen] = useState<boolean>(false);
+  const [reviewModalResult, setReviewModalResult] = useState<AssistantPreparationResult | null>(null);
+  const [isManualReviewOpen, setIsManualReviewOpen] = useState<boolean>(false);
+  const [detectionUncertain, setDetectionUncertain] = useState<boolean>(false);
+  const [assistantPreparedResult, setAssistantPreparedResult] = useState<AssistantPreparationResult | null>(null);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(true);
   const [showMap, setShowMap] = useState<boolean>(false);
@@ -160,9 +178,9 @@ export function MeasurementWorkspace() {
         setAnalysis(best.analysis);
 
         if (!best.analysis.latitudeColumn || !best.analysis.longitudeColumn) {
-          setError(
-            'Could not automatically detect latitude and longitude columns. Please ensure your workbook has columns with recognizable coordinate headers.'
-          );
+          setDetectionUncertain(true);
+        } else {
+          setDetectionUncertain(false);
         }
       }
     } catch (err) {
@@ -338,10 +356,149 @@ export function MeasurementWorkspace() {
     }, 150);
   }, [measurementMode, destinations, startingPoints, fileName, distAnalysis, sheetData, analysis]);
 
+  const handleAssistantUseInRouteMeasure = useCallback(
+    (
+      modeOrResult: AssistantPreparationResult | AssistantTargetMode,
+      pts?: NormalizedPointRecord[],
+      sts?: NormalizedDistanceRecord[]
+    ) => {
+      let targetMode: AssistantTargetMode;
+      let points: NormalizedPointRecord[];
+      let sites: NormalizedDistanceRecord[];
+
+      if (typeof modeOrResult === 'object' && 'mode' in modeOrResult) {
+        targetMode = modeOrResult.mode;
+        points = modeOrResult.points;
+        sites = modeOrResult.sites;
+      } else {
+        targetMode = modeOrResult;
+        points = pts || [];
+        sites = sts || [];
+      }
+
+      setReviewModalResult(null);
+      setIsAssistantOpen(false);
+
+      if (targetMode === 'lv_mv') {
+        const headers = ['Route Type', 'Point ID', 'Latitude', 'Longitude', 'Description'];
+        const rows = points.map((p) => [
+          p.routeType,
+          p.pointId,
+          p.latitude,
+          p.longitude,
+          p.description || '',
+        ]);
+
+        const customSheetData: RawSheetData = {
+          sheetName: 'AI Prepared Route',
+          headers,
+          rows,
+          totalRowCount: rows.length + 1,
+        };
+
+        const latCol: DetectedColumn = {
+          columnIndex: 2,
+          originalHeader: 'Latitude',
+          confidence: DetectionConfidence.High,
+          reason: 'Assistant verified',
+        };
+        const lonCol: DetectedColumn = {
+          columnIndex: 3,
+          originalHeader: 'Longitude',
+          confidence: DetectionConfidence.High,
+          reason: 'Assistant verified',
+        };
+        const ptCol: DetectedColumn = {
+          columnIndex: 1,
+          originalHeader: 'Point ID',
+          confidence: DetectionConfidence.High,
+          reason: 'Assistant verified',
+        };
+        const routeCol: DetectedColumn = {
+          columnIndex: 0,
+          originalHeader: 'Route Type',
+          confidence: DetectionConfidence.High,
+          reason: 'Assistant verified',
+        };
+        const descCol: DetectedColumn = {
+          columnIndex: 4,
+          originalHeader: 'Description',
+          confidence: DetectionConfidence.High,
+          reason: 'Assistant verified',
+        };
+
+        const customAnalysis: WorkbookAnalysis = {
+          worksheetNames: ['AI Prepared Route'],
+          selectedWorksheet: 'AI Prepared Route',
+          headerRow: 0,
+          latitudeColumn: latCol,
+          longitudeColumn: lonCol,
+          pointColumn: ptCol,
+          routeColumn: routeCol,
+          descriptionColumn: descCol,
+          orderColumn: null,
+          coordinateRowCount: points.length,
+          previewRows: points.slice(0, 5).map((p, i) => ({
+            Row: i + 2,
+            Latitude: p.latitude ?? '',
+            Longitude: p.longitude ?? '',
+          })),
+          allHeaders: headers,
+          hasAmbiguity: false,
+          orderingMethod: 'row',
+          orderingDescription: 'Sequenced network polyline (AI prepared)',
+        };
+
+        setSheetData(customSheetData);
+        setAnalysis(customAnalysis);
+        setMeasurementMode('route');
+        setFileName('RouteMeasure_Assistant_Data.xlsx');
+
+        const measurementResult = processWorkbook(customSheetData, customAnalysis, 'RouteMeasure_Assistant_Data.xlsx');
+        setResult(measurementResult);
+        setSelectedFilter('all');
+        setSidebarCollapsed(true);
+        setShowMap(false);
+        setScreen('results');
+      } else {
+        const newDests: DestinationSite[] = sites.map((s, idx) => ({
+          uid: s.id || generateUid(),
+          siteId: s.siteId,
+          legacySiteId: s.legacySiteId,
+          siteName: s.siteName,
+          region: s.region || 'Default Region',
+          latitude: s.latitude!,
+          longitude: s.longitude!,
+          description: s.description,
+          assignedStartingPointUid: null,
+          status: 'unassigned' as const,
+          sourceRow: idx + 2,
+          sourceSheet: 'AI Prepared Sites',
+          metadata: {
+            'Site ID': s.siteId,
+            'Site Name': s.siteName,
+            'Region': s.region || '',
+            'Latitude': s.latitude!,
+            'Longitude': s.longitude!,
+          },
+        }));
+
+        setDestinations(newDests);
+        setMeasurementMode('distance');
+        setFileName('RouteMeasure_Assistant_Destinations.xlsx');
+        setDistStartingPointFilter('all');
+        setIsAssignModalOpen(true);
+      }
+    },
+    []
+  );
+
   const handleNewUpload = useCallback(() => {
     setScreen('upload-confirm');
     setIsProcessing(false);
     setError(null);
+    setDetectionUncertain(false);
+    setIsManualReviewOpen(false);
     setFileObject(null);
     setFileName('');
     setFileSizeStr('');
@@ -757,13 +914,68 @@ ${displayedSummary.pointDistances
               </div>
             </div>
 
-            {error && (
+            {error && !detectionUncertain && (
               <div className="rm-alert-box rm-alert-error">
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
                   <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M8 5V9M8 11.5V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
                 <div style={{ whiteSpace: 'pre-line' }}>{error}</div>
+              </div>
+            )}
+
+            {/* Detection Uncertain Notice (Section 44) */}
+            {detectionUncertain && (
+              <div
+                className="rm-alert-box rm-alert-warn"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '16px',
+                  background: '#fffbeb',
+                  border: '1px solid #fef3c7',
+                  borderRadius: '10px',
+                  marginBottom: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="7" stroke="#d97706" strokeWidth="1.5"/>
+                    <path d="M8 5V9M8 11.5V12" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#b45309' }}>
+                    We couldn't confidently identify this workbook.
+                  </div>
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#78350f' }}>
+                  Automatic detection could not find recognizable coordinate headers. Choose how you would like to proceed:
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="rm-btn-confirm-process"
+                    style={{ padding: '6px 14px', fontSize: '12px' }}
+                    onClick={() => setIsManualReviewOpen(true)}
+                  >
+                    Review Columns
+                  </button>
+                  <button
+                    type="button"
+                    className="rm-btn-ai-hint"
+                    onClick={() => setIsAssistantOpen(true)}
+                  >
+                    ✦ Prepare with RouteMeasure Assistant
+                  </button>
+                  <button
+                    type="button"
+                    className="rm-btn-cancel"
+                    style={{ padding: '6px 14px', fontSize: '12px' }}
+                    onClick={handleNewUpload}
+                  >
+                    Choose Another File
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1075,6 +1287,21 @@ ${displayedSummary.pointDistances
                       </button>
                     </div>
                   </>
+                ) : isManualReviewOpen && sheetData ? (
+                  <ManualColumnReviewCard
+                    sheetData={sheetData}
+                    initialAnalysis={analysis}
+                    mode={measurementMode || 'route'}
+                    onModeChange={(newM) => setMeasurementMode(newM)}
+                    onConfirm={(customAnalysis) => {
+                      setAnalysis(customAnalysis);
+                      setIsManualReviewOpen(false);
+                      setDetectionUncertain(false);
+                      setError(null);
+                    }}
+                    onCancel={() => setIsManualReviewOpen(false)}
+                    onOpenAssistant={() => setIsAssistantOpen(true)}
+                  />
                 ) : measurementMode === 'route' && analysis ? (
                   /* ROUTE MODE CONFIRM CARD (LV & MV ROUTE) */
                   <>
@@ -1146,8 +1373,8 @@ ${displayedSummary.pointDistances
                           </thead>
                           <tbody>
                             {analysis.previewRows.slice(0, 5).map((row, idx) => {
-                              const latVal = analysis.latitudeColumn ? row[analysis.latitudeColumn.originalHeader] : undefined;
-                              const lonVal = analysis.longitudeColumn ? row[analysis.longitudeColumn.originalHeader] : undefined;
+                              const latVal = analysis.latitudeColumn ? (row[analysis.latitudeColumn.originalHeader] ?? row['Latitude']) : undefined;
+                              const lonVal = analysis.longitudeColumn ? (row[analysis.longitudeColumn.originalHeader] ?? row['Longitude']) : undefined;
                               return (
                                 <tr key={idx}>
                                   <td className="rm-row-num">{(analysis.headerRow ?? 0) + 2 + idx}</td>
@@ -1169,6 +1396,13 @@ ${displayedSummary.pointDistances
                     <div className="rm-confirm-actions">
                       <button className="rm-btn-cancel" onClick={() => { setMeasurementMode(null); handleNewUpload(); }}>
                         Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="rm-btn-manual-columns"
+                        onClick={() => setIsManualReviewOpen(true)}
+                      >
+                        Review / Change Columns
                       </button>
                       <button
                         className="rm-btn-confirm-process"
@@ -2052,6 +2286,41 @@ ${displayedSummary.pointDistances
             </div>
           </main>
         </div>
+      )}
+
+      {/* ─── ROUTEMEASURE ASSISTANT (Visible on Measurement / Upload workspace) ─── */}
+      {screen === 'upload-confirm' && (
+        <>
+          <AssistantButton
+            isOpen={isAssistantOpen}
+            onToggle={() => setIsAssistantOpen((prev) => !prev)}
+            hasUnreadOrPrepared={Boolean(assistantPreparedResult)}
+          />
+          <AssistantPanel
+            isOpen={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+            onMinimize={() => setIsAssistantOpen(false)}
+            currentMode={measurementMode}
+            onOpenReviewModal={(result) => {
+              setAssistantPreparedResult(result);
+              setReviewModalResult(result);
+            }}
+            onUseInRouteMeasure={handleAssistantUseInRouteMeasure}
+            onOpenManualReview={sheetData ? () => setIsManualReviewOpen(true) : undefined}
+          />
+        </>
+      )}
+
+      {/* Review Data Modal */}
+      {reviewModalResult && (
+        <ReviewDataModal
+          isOpen={Boolean(reviewModalResult)}
+          mode={reviewModalResult.mode}
+          initialPoints={reviewModalResult.points}
+          initialSites={reviewModalResult.sites}
+          onClose={() => setReviewModalResult(null)}
+          onConfirmUseInRouteMeasure={handleAssistantUseInRouteMeasure}
+        />
       )}
 
       {/* ─── MODALS ─────────────────────────────────────────────────── */}
