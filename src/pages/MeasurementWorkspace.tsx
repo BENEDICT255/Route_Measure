@@ -100,6 +100,17 @@ export function MeasurementWorkspace() {
     localStorage.setItem('gmaps_api_key', newKey);
   };
 
+  const [uploadToast, setUploadToast] = useState<string | null>(null);
+  const uploadToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showUploadToast = useCallback((msg: string) => {
+    if (uploadToastTimerRef.current) clearTimeout(uploadToastTimerRef.current);
+    setUploadToast(msg);
+    uploadToastTimerRef.current = setTimeout(() => {
+      setUploadToast(null);
+    }, 3200);
+  }, []);
+
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -186,6 +197,8 @@ export function MeasurementWorkspace() {
 
         setDetectionUncertain(isUncertain);
       }
+
+      showUploadToast('File uploaded successfully');
     } catch (err) {
       setError(
         `Failed to read the workbook: ${err instanceof Error ? err.message : 'Unknown error'}.`
@@ -497,6 +510,8 @@ export function MeasurementWorkspace() {
   );
 
   const handleNewUpload = useCallback(() => {
+    if (uploadToastTimerRef.current) clearTimeout(uploadToastTimerRef.current);
+    setUploadToast(null);
     setScreen('upload-confirm');
     setIsProcessing(false);
     setError(null);
@@ -906,6 +921,27 @@ ${displayedSummary.pointDistances
               </svg>
             </button>
 
+            {/* Floating Upload Success Toast Notification */}
+            {uploadToast && (
+              <div className="rm-upload-toast" role="status" aria-live="polite">
+                <div className="rm-upload-toast-icon">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="7.5" fill="#10b981"/>
+                    <path d="M5 8L7 10L11 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <span className="rm-upload-toast-text">{uploadToast}</span>
+                <button
+                  type="button"
+                  className="rm-upload-toast-close"
+                  onClick={() => setUploadToast(null)}
+                  aria-label="Dismiss notification"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <div className="rm-upload-modal-header">
               <div className="rm-upload-modal-title">
                 {measurementMode === 'route' ? 'Upload Route Coordinates' : 'Upload Site Data'}
@@ -1045,19 +1081,19 @@ ${displayedSummary.pointDistances
                         <span>XLS</span>
                       </div>
                       <div className="rm-file-meta">
-                        <div className="rm-file-name">{fileName}</div>
+                        <div className="rm-file-name" title={fileName}>{fileName}</div>
                         <div className="rm-file-size">{fileSizeStr}</div>
                       </div>
                     </div>
 
                     <div className="rm-file-status-right">
-                      <div className="rm-upload-success-badge">
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <span className="rm-file-ready-pill" title="File loaded and ready for processing">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                           <circle cx="8" cy="8" r="7" fill="#10b981"/>
-                          <path d="M5 8L7 10L11 6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M5 8L7 10L11 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                        <span>File uploaded successfully</span>
-                      </div>
+                        Ready
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1405,6 +1441,9 @@ ${displayedSummary.pointDistances
                         className="rm-btn-manual-columns"
                         onClick={() => setIsManualReviewOpen(true)}
                       >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                          <path d="M11.5 2.5a2.121 2.121 0 0 1 3 3L5 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                         Review / Change Columns
                       </button>
                       <button
