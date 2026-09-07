@@ -2028,15 +2028,20 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   padding-top: 14px;
+  flex-wrap: wrap;
+}
+
+.rm-confirm-actions .rm-btn-cancel {
+  margin-right: auto;
 }
 
 .rm-btn-cancel {
   background: transparent;
   border: 1px solid #e2e8f0;
   color: #64748b;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
@@ -2048,6 +2053,8 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   justify-content: center;
   height: 36px;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rm-btn-cancel:hover {
@@ -2060,7 +2067,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   background: var(--rm-surface, #ffffff);
   border: 1px solid #cbd5e1;
   color: #334155;
-  padding: 8px 16px;
+  padding: 8px 13px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
@@ -2075,6 +2082,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rm-btn-manual-columns:hover {
@@ -2094,7 +2102,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   background: #2563eb;
   color: white;
   border: none;
-  padding: 8px 20px;
+  padding: 8px 16px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
@@ -2108,6 +2116,8 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   gap: 6px;
   height: 36px;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rm-btn-confirm-process:hover:not(:disabled) {
@@ -2196,7 +2206,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border: 1px solid var(--rm-border);
   border-radius: 20px;
   width: 95%;
-  max-width: 960px;
+  max-width: 980px;
   max-height: calc(100vh - 48px);
   margin: auto;
   overflow-y: auto;
@@ -2266,7 +2276,7 @@ div[style*="z-index: 1000000"] > div[style*="background-color: white"] {
   border: 1px solid var(--rm-border);
   border-radius: 14px;
   background: var(--rm-surface);
-  padding: 22px;
+  padding: 20px 22px;
   box-sizing: border-box;
   min-width: 0;
   overflow: hidden;
