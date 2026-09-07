@@ -5,8 +5,25 @@
 import type { DetectedColumn, RawSheetData } from '../types/workbook';
 import { DetectionConfidence } from '../types/workbook';
 
-const LATITUDE_ALIASES = new Set(['latitude', 'lat', 'y']);
-const LONGITUDE_ALIASES = new Set(['longitude', 'long', 'lon', 'lng', 'x']);
+const LATITUDE_EXACT_ALIASES = new Set([
+  'latitude', 'lat', 'y', 'northing', 'north',
+  'latitude dd', 'lat dd', 'latitude deg', 'lat deg', 'latitude d',
+  'gps latitude', 'gps lat', 'site latitude', 'site lat',
+  'pole latitude', 'pole lat', 'coordinate latitude', 'coord latitude',
+  'lat n', 'latitude n', 'latitude wgs84', 'wgs84 lat',
+  'coord y', 'coordinate y', 'y coord', 'y coordinate'
+]);
+
+const LONGITUDE_EXACT_ALIASES = new Set([
+  'longitude', 'long', 'lon', 'lng', 'x', 'easting', 'east',
+  'longitude dd', 'long dd', 'lon dd', 'lng dd', 'longitude deg', 'long deg', 'lon deg',
+  'gps longitude', 'gps long', 'gps lon', 'gps lng',
+  'site longitude', 'site long', 'site lon',
+  'pole longitude', 'pole long', 'pole lon', 'coordinate longitude', 'coord longitude',
+  'lon e', 'long e', 'longitude e', 'longitude wgs84', 'wgs84 lon',
+  'coord x', 'coordinate x', 'x coord', 'x coordinate'
+]);
+
 const POINT_ALIASES = new Set(['point', 'point id', 'point no', 'pointid', 'pointno', 'pole', 'pole no', 'poleno', 'pole number', 'pole description', 'name', 'label', 'id', 'marker', 'station', 'wp', 'waypoint']);
 const ROUTE_ALIASES = new Set(['route', 'route id', 'routeid', 'line', 'line id', 'lineid', 'circuit', 'section', 'group']);
 const DESCRIPTION_ALIASES = new Set(['description', 'desc', 'remarks', 'remark', 'comment', 'comments', 'notes', 'note', 'type']);
@@ -18,6 +35,26 @@ function normalizeHeader(header: string): string {
 
 function matchesAlias(normalizedHeader: string, aliases: Set<string>): boolean {
   return aliases.has(normalizedHeader);
+}
+
+function isLatitudeHeader(normalized: string): boolean {
+  const clean = normalized.replace(/[()\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (LATITUDE_EXACT_ALIASES.has(clean)) return true;
+  if (/\b(latitude|northing)\b/i.test(clean)) return true;
+  if (/\blat\b/i.test(clean) && !/\b(relative|plate|plateau|template|latest|late)\b/i.test(clean)) {
+    return true;
+  }
+  return false;
+}
+
+function isLongitudeHeader(normalized: string): boolean {
+  const clean = normalized.replace(/[()\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (LONGITUDE_EXACT_ALIASES.has(clean)) return true;
+  if (/\b(longitude|easting)\b/i.test(clean)) return true;
+  if (/\b(lon|lng|long)\b/i.test(clean) && !/\b(along|belong|prolong|furlong)\b/i.test(clean)) {
+    return true;
+  }
+  return false;
 }
 
 export function detectColumns(sheetData: RawSheetData): {
@@ -43,7 +80,7 @@ export function detectColumns(sheetData: RawSheetData): {
 
     const normalized = normalizeHeader(header);
 
-    if (matchesAlias(normalized, LATITUDE_ALIASES)) {
+    if (isLatitudeHeader(normalized)) {
       latCandidates.push({
         columnIndex: i,
         originalHeader: header,
@@ -52,7 +89,7 @@ export function detectColumns(sheetData: RawSheetData): {
       });
     }
 
-    if (matchesAlias(normalized, LONGITUDE_ALIASES)) {
+    if (isLongitudeHeader(normalized)) {
       lonCandidates.push({
         columnIndex: i,
         originalHeader: header,

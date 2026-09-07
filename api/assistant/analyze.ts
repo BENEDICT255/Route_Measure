@@ -1,5 +1,13 @@
 import { GoogleGenAI } from '@google/genai';
 
+interface AttachedFileInfo {
+  name: string;
+  type: string;
+  fileBase64?: string;
+  mimeType?: string;
+  textContent?: string;
+}
+
 interface AnalyzeRequestBody {
   targetMode?: 'lv_mv' | 'point_to_point' | 'auto';
   text?: string;
@@ -7,6 +15,7 @@ interface AnalyzeRequestBody {
   sourceFile?: string;
   fileBase64?: string;
   mimeType?: string;
+  files?: AttachedFileInfo[];
 }
 
 const SYSTEM_INSTRUCTION = `You are the RouteMeasure data-preparation assistant for geospatial transmission lines and utility infrastructure.
@@ -51,10 +60,24 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body: AnalyzeRequestBody = req.body || {};
-    const { targetMode = 'auto', text, sourceType = 'unknown', sourceFile, fileBase64, mimeType } = body;
+    const { targetMode = 'auto', text, sourceType = 'unknown', sourceFile, fileBase64, mimeType, files } = body;
 
-    if (!text && !fileBase64) {
-      return res.status(400).json({ error: 'No data provided for analysis.' });
+    // Collect attached files (supporting up to 3 files or legacy single file)
+    const attachedFiles: AttachedFileInfo[] = [];
+    if (Array.isArray(files) && files.length > 0) {
+      attachedFiles.push(...files.slice(0, 3));
+    } else if (fileBase64 || sourceFile) {
+      attachedFiles.push({
+        name: sourceFile || 'Uploaded File',
+        type: sourceType || 'unknown',
+        fileBase64,
+        mimeType,
+        textContent: text,
+      });
+    }
+
+    if (!text && attachedFiles.length === 0) {
+      return res.status(400).json({ error: 'No data or files provided for analysis.' });
     }
 
     const configuredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
@@ -73,24 +96,48 @@ export default async function handler(req: any, res: any) {
 
     const parts: any[] = [];
 
-    // Multimodal support (e.g. PDF file)
-    if (fileBase64 && mimeType) {
-      parts.push({
-        inlineData: {
-          mimeType,
-          data: fileBase64,
-        },
-      });
+    // Multimodal support (e.g. PDF files, images)
+    for (const f of attachedFiles) {
+      if (f.fileBase64 && f.mimeType) {
+        parts.push({
+          inlineData: {
+            mimeType: f.mimeType,
+            data: f.fileBase64,
+          },
+        });
+      }
     }
 
     // Text instructions & payload
     let prompt = `Analyze this geospatial data and extract normalized points/sites.\n`;
     prompt += `Target Mode requested: ${targetMode}\n`;
-    prompt += `Source info: File="${sourceFile || 'unknown'}", Type="${sourceType}"\n\n`;
-
-    if (text) {
-      prompt += `SOURCE DATA CONTENT:\n${text}\n\n`;
+    if (attachedFiles.length > 0) {
+      prompt += `Attached files count: ${attachedFiles.length}\n`;
+      attachedFiles.forEach((f, idx) => {
+        prompt += `File [${idx + 1}/${attachedFiles.length}]: "${f.name}" (Type: ${f.type})\n`;
+      });
+    } else {
+      prompt += `Source info: File="${sourceFile || 'unknown'}", Type="${sourceType}"\n`;
     }
+    prompt += `\n`;
+
+    if (attachedFiles.length > 0) {
+      attachedFiles.forEach((f, idx) => {
+        if (f.textContent) {
+          prompt += `=== ATTACHED FILE [${idx + 1}/${attachedFiles.length}]: "${f.name}" ===\n`;
+          prompt += `${f.textContent}\n\n`;
+        }
+      });
+    }
+
+    if (text && (!attachedFiles.length || attachedFiles.every((f) => f.textContent !== text))) {
+      prompt += `USER INSTRUCTIONS / TEXT DATA:\n${text}\n\n`;
+    }
+
+    prompt += `MULTI-DOCUMENT EXTRACTION INSTRUCTIONS:\n`;
+    prompt += `1. When multiple files are attached (e.g. separate files or PDFs for LV coordinates and MV coordinates), extract coordinates from ALL provided documents into one unified output.\n`;
+    prompt += `2. Classify each point as LV or MV by inspecting file names, sheet names, headings, or point labels (e.g. "LV", "MV", "Low Voltage", "Medium Voltage"). If a file is named e.g. "LV_Coordinates.pdf", all its points should have routeType: "LV". If named "MV_Coordinates.pdf", routeType: "MV".\n`;
+    prompt += `3. For each extracted point or site, set source.file to the exact filename of the document it was extracted from.\n\n`;
 
     prompt += `OUTPUT FORMAT REQUIRED (STRICT JSON ONLY, NO WRAPPING BACKTICKS):\n`;
     prompt += `{
@@ -107,7 +154,7 @@ export default async function handler(req: any, res: any) {
       "confidence": number between 0 and 1,
       "source": {
         "type": "${sourceType}",
-        "file": "${sourceFile || ''}",
+        "file": "string",
         "sheet": "string or undefined",
         "row": number or undefined,
         "page": number or undefined,

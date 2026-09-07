@@ -117,13 +117,34 @@ export function selectBestSheet(
     const analysis = analyzeSheet(sheetData, sheetNames);
     let score = 0;
 
+    const hasBoth = Boolean(analysis.latitudeColumn && analysis.longitudeColumn);
+
+    if (hasBoth) {
+      score += 50; // Substantial bonus for having both coordinates detected
+    } else {
+      score -= 50; // Penalty if missing one or both
+    }
+
     if (analysis.latitudeColumn) {
-      score += analysis.latitudeColumn.confidence === 'high' ? 10 : 5;
+      score += analysis.latitudeColumn.confidence === 'high' ? 100 : 10;
     }
     if (analysis.longitudeColumn) {
-      score += analysis.longitudeColumn.confidence === 'high' ? 10 : 5;
+      score += analysis.longitudeColumn.confidence === 'high' ? 100 : 10;
     }
-    score += analysis.coordinateRowCount;
+
+    score += Math.min(analysis.coordinateRowCount, 50);
+
+    const normSheet = sheetName.toLowerCase().trim();
+    if (/(coords?|coordinates?|route|points?|poles?|sites?|lv|mv|gps|data|path|line)/i.test(normSheet)) {
+      score += 30;
+    }
+    if (/(summary|boq|bill of quantities|totals?|cover|instructions?|readme|pricing)/i.test(normSheet)) {
+      score -= 40;
+    }
+
+    if (analysis.hasAmbiguity) {
+      score -= 25;
+    }
 
     if (score > bestScore) {
       bestScore = score;

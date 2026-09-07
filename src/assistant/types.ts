@@ -82,6 +82,7 @@ export interface AssistantMessage {
   text: string;
   timestamp: number;
   attachment?: AssistantFileAttachment;
+  attachments?: AssistantFileAttachment[];
   resultSummary?: AssistantPreparationResult;
   quickActions?: string[];
   isProcessing?: boolean;

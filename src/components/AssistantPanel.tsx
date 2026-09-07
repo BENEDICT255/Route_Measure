@@ -52,7 +52,7 @@ export function AssistantPanel({
   ]);
 
   const [inputVal, setInputVal] = useState('');
-  const [selectedFile, setSelectedFile] = useState<AssistantFileAttachment | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<AssistantFileAttachment[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,18 +120,11 @@ export function AssistantPanel({
     }
   };
 
-  // File Select Handler
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset file input value
-    e.target.value = '';
-
+  const processRawFile = async (file: File): Promise<AssistantFileAttachment | null> => {
     const maxBytes = 10 * 1024 * 1024; // 10MB
     if (file.size > maxBytes) {
-      alert('File size exceeds 10MB limit. Please upload a smaller file.');
-      return;
+      alert(`"${file.name}" exceeds the 10MB limit.`);
+      return null;
     }
 
     const attachment: AssistantFileAttachment = {
@@ -143,13 +136,16 @@ export function AssistantPanel({
     const ext = attachment.type;
 
     if (ext === 'pdf') {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64Str = (reader.result as string).split(',')[1];
-        attachment.dataBase64 = base64Str;
-        setSelectedFile(attachment);
-      };
-      reader.readAsDataURL(file);
+      return new Promise<AssistantFileAttachment>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64Str = (reader.result as string).split(',')[1];
+          attachment.dataBase64 = base64Str;
+          resolve(attachment);
+        };
+        reader.onerror = () => resolve(attachment);
+        reader.readAsDataURL(file);
+      });
     } else if (ext === 'xlsx' || ext === 'xls') {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
@@ -160,38 +156,76 @@ export function AssistantPanel({
         extractedText += `--- WORKSHEET: ${sheetName} ---\n${csv}\n\n`;
       }
       attachment.textContent = extractedText;
-      setSelectedFile(attachment);
+      return attachment;
     } else {
       // txt, csv, etc.
       const text = await file.text();
       attachment.textContent = text;
-      setSelectedFile(attachment);
+      return attachment;
     }
   };
 
-  // Submit Handler (File or Paste)
+  // Multi-File Select Handler (up to 3 files)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const filesToAdd = Array.from(fileList);
+    e.target.value = '';
+
+    const availableSlots = 3 - selectedFiles.length;
+    if (availableSlots <= 0) {
+      alert('You can attach a maximum of 3 files at a time.');
+      return;
+    }
+
+    if (filesToAdd.length > availableSlots) {
+      alert(`Only up to 3 files can be attached. Adding the first ${availableSlots} file(s).`);
+    }
+
+    const filesToProcess = filesToAdd.slice(0, availableSlots);
+    const newAttachments: AssistantFileAttachment[] = [];
+
+    for (const f of filesToProcess) {
+      const att = await processRawFile(f);
+      if (att) newAttachments.push(att);
+    }
+
+    setSelectedFiles((prev) => [...prev, ...newAttachments].slice(0, 3));
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Submit Handler (Files and/or Text)
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const textToSend = inputVal.trim();
-    const fileToSend = selectedFile;
+    const filesToSend = [...selectedFiles];
 
-    if (!textToSend && !fileToSend) return;
+    if (!textToSend && filesToSend.length === 0) return;
 
-    executeAnalysis(textToSend, fileToSend);
+    executeAnalysis(textToSend, filesToSend);
   };
 
-  const executeAnalysis = async (text: string, file: AssistantFileAttachment | null) => {
+  const executeAnalysis = async (text: string, files: AssistantFileAttachment[]) => {
     // Push user message
     const userMsg: AssistantMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
-      text: text || `Uploaded ${file?.name}`,
-      attachment: file || undefined,
+      text:
+        text ||
+        (files.length === 1
+          ? `Uploaded ${files[0].name}`
+          : `Uploaded ${files.length} files: ${files.map((f) => f.name).join(', ')}`),
+      attachment: files.length === 1 ? files[0] : undefined,
+      attachments: files.length > 0 ? files : undefined,
       timestamp: Date.now(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setInputVal('');
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setIsProcessing(true);
 
     const targetMode: AssistantTargetMode =
@@ -200,16 +234,18 @@ export function AssistantPanel({
     try {
       const payload: any = {
         targetMode,
-        sourceType: file ? file.type : 'paste',
-        sourceFile: file ? file.name : 'Pasted Text',
+        sourceType: files.length === 1 ? files[0].type : files.length > 1 ? 'multi_file' : 'paste',
+        sourceFile: files.length === 1 ? files[0].name : files.length > 1 ? files.map((f) => f.name).join(', ') : 'Pasted Text',
+        files: files.map((f) => ({
+          name: f.name,
+          type: f.type,
+          fileBase64: f.dataBase64,
+          mimeType: f.type === 'pdf' ? 'application/pdf' : undefined,
+          textContent: f.textContent,
+        })),
       };
 
-      if (file?.dataBase64) {
-        payload.fileBase64 = file.dataBase64;
-        payload.mimeType = 'application/pdf';
-      } else if (file?.textContent) {
-        payload.text = file.textContent;
-      } else if (text) {
+      if (text) {
         payload.text = text;
       }
 
@@ -310,14 +346,24 @@ export function AssistantPanel({
                 {msg.text}
               </div>
 
-              {/* Attachment card */}
-              {msg.attachment && (
+              {/* Attachment card(s) */}
+              {msg.attachments && msg.attachments.length > 0 ? (
+                <div className="rm-attachment-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                  {msg.attachments.map((att, attIdx) => (
+                    <div key={attIdx} className="rm-attachment-pill">
+                      <span className="rm-attachment-icon">{att.type === 'pdf' ? '📄' : '📎'}</span>
+                      <span className="rm-attachment-name">{att.name}</span>
+                      <span className="rm-attachment-size">({(att.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  ))}
+                </div>
+              ) : msg.attachment ? (
                 <div className="rm-attachment-pill">
-                  <span className="rm-attachment-icon">📎</span>
+                  <span className="rm-attachment-icon">{msg.attachment.type === 'pdf' ? '📄' : '📎'}</span>
                   <span className="rm-attachment-name">{msg.attachment.name}</span>
                   <span className="rm-attachment-size">({(msg.attachment.size / 1024).toFixed(1)} KB)</span>
                 </div>
-              )}
+              ) : null}
 
               {/* Result Summary Card */}
               {msg.resultSummary && (
@@ -451,22 +497,39 @@ export function AssistantPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Selected File Badge above footer */}
-      {selectedFile && (
-        <div className="rm-selected-file-banner">
-          <div className="rm-banner-info">
-            <span className="rm-file-icon">📄</span>
-            <span className="rm-file-name">{selectedFile.name}</span>
-            <span className="rm-file-size">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+      {/* Selected Files Badge List above footer */}
+      {selectedFiles.length > 0 && (
+        <div className="rm-selected-files-container">
+          <div className="rm-selected-files-header">
+            <span>Attached files ({selectedFiles.length}/3 max):</span>
+            {selectedFiles.length > 1 && (
+              <button
+                type="button"
+                className="rm-clear-all-attachments"
+                onClick={() => setSelectedFiles([])}
+              >
+                Clear all
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            className="rm-banner-remove"
-            onClick={() => setSelectedFile(null)}
-            aria-label="Remove attached file"
-          >
-            ✕
-          </button>
+          <div className="rm-selected-files-chips">
+            {selectedFiles.map((file, idx) => (
+              <div key={`${file.name}-${idx}`} className="rm-selected-file-chip">
+                <span className="rm-file-icon">{file.type === 'pdf' ? '📄' : '📊'}</span>
+                <span className="rm-file-name" title={file.name}>{file.name}</span>
+                <span className="rm-file-size">({(file.size / 1024).toFixed(1)} KB)</span>
+                <button
+                  type="button"
+                  className="rm-file-remove-btn"
+                  onClick={() => handleRemoveFile(idx)}
+                  aria-label={`Remove ${file.name}`}
+                  title="Remove file"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -476,6 +539,7 @@ export function AssistantPanel({
           type="file"
           ref={fileInputRef}
           style={{ display: 'none' }}
+          multiple
           accept=".xlsx,.xls,.csv,.pdf,.docx,.txt"
           onChange={handleFileChange}
         />
@@ -483,8 +547,8 @@ export function AssistantPanel({
           type="button"
           className="rm-btn-attach"
           onClick={() => fileInputRef.current?.click()}
-          title="Attach spreadsheet, PDF, Word or text file"
-          aria-label="Attach file"
+          title="Attach spreadsheets, PDFs, Word or text files (up to 3)"
+          aria-label="Attach files"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -494,7 +558,11 @@ export function AssistantPanel({
         <input
           type="text"
           className="rm-assistant-input"
-          placeholder={selectedFile ? 'Add any notes or press send...' : 'Paste coordinates or ask a question...'}
+          placeholder={
+            selectedFiles.length > 0
+              ? `Add notes for ${selectedFiles.length} file(s) or press send...`
+              : 'Paste coordinates or ask a question...'
+          }
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
           disabled={isProcessing}
@@ -503,7 +571,7 @@ export function AssistantPanel({
         <button
           type="submit"
           className="rm-btn-send"
-          disabled={isProcessing || (!inputVal.trim() && !selectedFile)}
+          disabled={isProcessing || (!inputVal.trim() && selectedFiles.length === 0)}
           aria-label="Send message"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

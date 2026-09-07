@@ -177,11 +177,14 @@ export function MeasurementWorkspace() {
         setSheetData(selectedSheetData);
         setAnalysis(best.analysis);
 
-        if (!best.analysis.latitudeColumn || !best.analysis.longitudeColumn) {
-          setDetectionUncertain(true);
-        } else {
-          setDetectionUncertain(false);
-        }
+        const isUncertain =
+          !best.analysis.latitudeColumn ||
+          !best.analysis.longitudeColumn ||
+          best.analysis.hasAmbiguity ||
+          best.analysis.latitudeColumn.confidence === DetectionConfidence.Low ||
+          best.analysis.longitudeColumn.confidence === DetectionConfidence.Low;
+
+        setDetectionUncertain(isUncertain);
       }
     } catch (err) {
       setError(
@@ -1407,7 +1410,8 @@ ${displayedSummary.pointDistances
                       <button
                         className="rm-btn-confirm-process"
                         onClick={handleProcess}
-                        disabled={isProcessing || !analysis.latitudeColumn || !analysis.longitudeColumn}
+                        disabled={isProcessing || !analysis.latitudeColumn || !analysis.longitudeColumn || detectionUncertain}
+                        title={detectionUncertain ? 'Please review columns or prepare data before confirming' : ''}
                       >
                         {isProcessing ? 'Processing…' : 'Confirm & Process →'}
                       </button>
